@@ -1,0 +1,2 @@
+# All lua is compiled from fnl
+*.lua linguist-generated=true
