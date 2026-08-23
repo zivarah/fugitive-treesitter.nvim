@@ -1,10 +1,9 @@
 -- [nfnl] plugin/fugitive-treesitter.fnl
-local minimum_version = "0.12"
-local function version_supported_3f()
-  return (1 == vim.fn.has(("nvim-" .. minimum_version)))
-end
 if not vim.g.loaded_fugitive_treesitter then
   vim.g.loaded_fugitive_treesitter = true
+  local _let_1_ = require("fugitive-treesitter.health")
+  local version_supported_3f = _let_1_["version-supported?"]
+  local minimum_version = _let_1_["minimum-version"]
   if not version_supported_3f() then
     return vim.notify(("fugitive-treesitter.nvim needs Neovim " .. minimum_version .. " or newer."), vim.log.levels.WARN)
   else

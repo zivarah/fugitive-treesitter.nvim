@@ -10,9 +10,10 @@ CONTENTS                                        *fugitive-treesitter-contents*
 2. Requirements ............................|fugitive-treesitter-requirements|
 3. Installation ............................|fugitive-treesitter-installation|
 4. Configuration .................................|fugitive-treesitter-config|
-5. Lua module .......................................|fugitive-treesitter-lua|
-6. Credits ......................................|fugitive-treesitter-credits|
-7. Stability ..................................|fugitive-treesitter-stability|
+5. Healthcheck ...................................|fugitive-treesitter-health|
+6. Lua module .......................................|fugitive-treesitter-lua|
+7. Credits ......................................|fugitive-treesitter-credits|
+8. Stability ..................................|fugitive-treesitter-stability|
 
 ==============================================================================
 INTRODUCTION                                             *fugitive-treesitter*
@@ -48,6 +49,14 @@ The plugin works with no configuration. To change an option, pass it to
 |fugitive-treesitter.setup()|, or use the equivalent in your plugin manager.
 
 There are no options yet.
+
+==============================================================================
+HEALTHCHECK                                       *fugitive-treesitter-health*
+
+>vim
+    :checkhealth fugitive-treesitter
+<
+This reports the requirements and the options in effect.
 
 ==============================================================================
 LUA MODULE                                           *fugitive-treesitter-lua*

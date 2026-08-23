@@ -45,6 +45,12 @@ See [`:help fugitive-treesitter`][vimdoc] for:
 :checkhealth fugitive-treesitter
 ```
 
+## Troubleshooting
+
+```vim
+:checkhealth fugitive-treesitter
+```
+
 ## Credits
 
 [vim-fugitive][fugitive] provides the buffers that this plugin integrates with.
