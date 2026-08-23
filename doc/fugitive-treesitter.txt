@@ -1,0 +1,59 @@
+*fugitive-treesitter.txt*  Treesitter syntax highlighting in fugitive diffs
+
+Author:  Brian Lyles
+License: MIT
+
+==============================================================================
+CONTENTS                                        *fugitive-treesitter-contents*
+
+1. Introduction .........................................|fugitive-treesitter|
+2. Requirements ............................|fugitive-treesitter-requirements|
+3. Installation ............................|fugitive-treesitter-installation|
+4. Credits ......................................|fugitive-treesitter-credits|
+5. Stability ..................................|fugitive-treesitter-stability|
+
+==============================================================================
+INTRODUCTION                                             *fugitive-treesitter*
+
+This plugin highlights the code inside |fugitive| diffs with treesitter.
+
+==============================================================================
+REQUIREMENTS                                *fugitive-treesitter-requirements*
+
+- Neovim 0.12 or newer
+- An installed treesitter parser for each language you want highlighted
+
+|fugitive| is not actually a runtime dependency, but this plugin won't be very
+useful without it.
+
+==============================================================================
+INSTALLATION                                *fugitive-treesitter-installation*
+
+With lazy.nvim: >lua
+    {
+        "zivarah/fugitive-treesitter.nvim",
+    }
+<
+With |vim.pack|: >lua
+    vim.pack.add({
+        "https://github.com/zivarah/fugitive-treesitter.nvim",
+    })
+
+==============================================================================
+CREDITS                                          *fugitive-treesitter-credits*
+
+vim-fugitive provides the buffers that this plugin integrates with.
+
+    https://github.com/tpope/vim-fugitive
+
+The idea and general approach is borrowed from Neogit.
+
+    https://github.com/NeogitOrg/neogit
+
+==============================================================================
+STABILITY                                      *fugitive-treesitter-stability*
+
+This help file documents the public API. Everything else is internal, and an
+update can change or remove it without notice.
+
+vim:tw=78:ts=8:ft=help:norl:
