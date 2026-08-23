@@ -1,0 +1,48 @@
+;;; Plugin options.
+
+(local defaults {})
+
+(var options (vim.deepcopy defaults))
+
+(fn unknown-keys [opts known ?prefix]
+  "Identify keys in `opts` that aren't recognized by this plugin.
+
+  Parameters:
+    `opts`    The options to check.
+    `known`   The table of options that the plugin has, at the same depth.
+    `?prefix` The dotted path of `opts` so far, pass nil for the top-level call.
+
+  Returns a sequential table of unrecognized option paths."
+  (let [unknown []]
+    (each [key value (pairs opts)]
+      (let [path (if ?prefix (.. ?prefix key) key)
+            ?known (. known key)]
+        (if (= nil ?known)
+            (table.insert unknown path)
+            (and (= :table (type ?known)) (= :table (type value)))
+            (each [_ name (ipairs (unknown-keys value ?known (.. path ".")))]
+              (table.insert unknown name)))))
+    unknown))
+
+(fn setup [?opts]
+  "Configure the plugin by merging `?opts` with the default options.
+
+  Parameters:
+    `?opts`  The user options. See |fugitive-treesitter-config|."
+  (vim.validate :opts ?opts :table true)
+  (let [opts (or ?opts {})
+        unknown (unknown-keys opts defaults)]
+    (when (> (length unknown) 0)
+      (vim.notify (.. "fugitive-treesitter: unknown options specified: "
+                      (table.concat unknown ", "))
+                  vim.log.levels.WARN))
+    (set options (vim.tbl_deep_extend :force defaults opts))))
+
+(fn get []
+  "Get the plugin options.
+
+  Returns the currently configured options, or the defaults if `setup` has not
+  run."
+  options)
+
+{: setup : get}

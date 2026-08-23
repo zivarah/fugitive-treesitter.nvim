@@ -9,8 +9,10 @@ CONTENTS                                        *fugitive-treesitter-contents*
 1. Introduction .........................................|fugitive-treesitter|
 2. Requirements ............................|fugitive-treesitter-requirements|
 3. Installation ............................|fugitive-treesitter-installation|
-4. Credits ......................................|fugitive-treesitter-credits|
-5. Stability ..................................|fugitive-treesitter-stability|
+4. Configuration .................................|fugitive-treesitter-config|
+5. Lua module .......................................|fugitive-treesitter-lua|
+6. Credits ......................................|fugitive-treesitter-credits|
+7. Stability ..................................|fugitive-treesitter-stability|
 
 ==============================================================================
 INTRODUCTION                                             *fugitive-treesitter*
@@ -38,6 +40,24 @@ With |vim.pack|: >lua
     vim.pack.add({
         "https://github.com/zivarah/fugitive-treesitter.nvim",
     })
+
+==============================================================================
+CONFIGURATION                                     *fugitive-treesitter-config*
+
+The plugin works with no configuration. To change an option, pass it to
+|fugitive-treesitter.setup()|, or use the equivalent in your plugin manager.
+
+There are no options yet.
+
+==============================================================================
+LUA MODULE                                           *fugitive-treesitter-lua*
+
+fugitive-treesitter.setup({opts})                *fugitive-treesitter.setup()*
+    Sets up the plugin. Calling this function is optional: the plugin
+    highlights fugitive diffs with no configuration.
+
+    Parameters: ~
+      • {opts}  (`table?`) The options. See |fugitive-treesitter-config|.
 
 ==============================================================================
 CREDITS                                          *fugitive-treesitter-credits*
