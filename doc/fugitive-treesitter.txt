@@ -53,7 +53,17 @@ CONFIGURATION                                     *fugitive-treesitter-config*
 The plugin works with no configuration. To change an option, pass it to
 |fugitive-treesitter.setup()|, or use the equivalent in your plugin manager.
 
-There are no options yet.
+Defaults: >lua
+    require("fugitive-treesitter").setup({
+        max_lines = 10000,
+    })
+<
+                                               *fugitive-treesitter-max_lines*
+max_lines ~
+    Buffers with more lines than this will not be highlighted. This avoids
+    extreme cases like `:Git log -p` over a long range from blocking the UI.
+
+    Set 0 for no limit.
 
 ==============================================================================
 HIGHLIGHT GROUPS                              *fugitive-treesitter-highlights*

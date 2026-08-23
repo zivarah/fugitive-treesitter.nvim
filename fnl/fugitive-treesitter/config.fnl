@@ -1,6 +1,6 @@
 ;;; Plugin options.
 
-(local defaults {})
+(local defaults {:max_lines 10000})
 
 (var options (vim.deepcopy defaults))
 
@@ -36,7 +36,9 @@
       (vim.notify (.. "fugitive-treesitter: unknown options specified: "
                       (table.concat unknown ", "))
                   vim.log.levels.WARN))
-    (set options (vim.tbl_deep_extend :force defaults opts))))
+    (let [merged (vim.tbl_deep_extend :force defaults (or ?opts {}))]
+      (vim.validate :max_lines merged.max_lines :number)
+      (set options merged))))
 
 (fn get []
   "Get the plugin options.

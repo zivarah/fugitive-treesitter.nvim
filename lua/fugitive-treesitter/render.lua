@@ -1,6 +1,7 @@
 -- [nfnl] fnl/fugitive-treesitter/render.fnl
 local _local_1_ = require("fugitive-treesitter.lib.str")
 local char_at = _local_1_["char-at"]
+local config = require("fugitive-treesitter.config")
 local highlight = require("fugitive-treesitter.highlight")
 local scan = require("fugitive-treesitter.scan")
 local ns = vim.api.nvim_create_namespace("fugitive-treesitter")
@@ -195,11 +196,19 @@ end
 local function clear(buf)
   return vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
 end
+local function too_large_3f(buf, max_lines)
+  return ((0 < max_lines) and (max_lines < vim.api.nvim_buf_line_count(buf)))
+end
 local function buffer(buf)
-  local filetype = vim.api.nvim_get_option_value("filetype", {buf = buf})
-  local buf_lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-  highlight.ensure()
   clear(buf)
-  return apply_regions(buf, buf_lines, scan.regions(buf_lines, filetype))
+  local opts = config.get()
+  if not too_large_3f(buf, opts.max_lines) then
+    local filetype = vim.api.nvim_get_option_value("filetype", {buf = buf})
+    local buf_lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+    highlight.ensure()
+    return apply_regions(buf, buf_lines, scan.regions(buf_lines, filetype))
+  else
+    return nil
+  end
 end
 return {clear = clear, buffer = buffer}

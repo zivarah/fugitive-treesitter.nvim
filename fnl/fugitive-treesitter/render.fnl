@@ -5,6 +5,7 @@
 ;;; buffer. Each extmark shifts back by one to compensate.
 
 (local {: char-at} (require :fugitive-treesitter.lib.str))
+(local config (require :fugitive-treesitter.config))
 (local highlight (require :fugitive-treesitter.highlight))
 (local scan (require :fugitive-treesitter.scan))
 
@@ -224,15 +225,31 @@
     `buf`  The buffer number."
   (vim.api.nvim_buf_clear_namespace buf ns 0 -1))
 
+(fn too-large? [buf max-lines]
+  "Test whether a buffer is too large to highlight.
+
+  Parameters:
+    `buf`        The buffer number.
+    `max-lines`  The line limit. A value of 0 or less means no limit.
+
+  Returns true if the buffer has more lines than the limit."
+  (and (< 0 max-lines) (< max-lines (vim.api.nvim_buf_line_count buf))))
+
 (fn buffer [buf]
   "Apply the diff highlights of a whole buffer again.
 
+  A buffer over the `max_lines` limit is left with no highlights at all.
+
   Parameters:
     `buf`  The buffer number."
-  (let [filetype (vim.api.nvim_get_option_value :filetype {: buf})
-        buf-lines (vim.api.nvim_buf_get_lines buf 0 -1 false)]
-    (highlight.ensure)
-    (clear buf)
-    (apply-regions buf buf-lines (scan.regions buf-lines filetype))))
+  ;; Clear first and unconditionally, so that a buffer which grows past the
+  ;; limit does not keep the highlights from when it was smaller.
+  (clear buf)
+  (let [opts (config.get)]
+    (when (not (too-large? buf opts.max_lines))
+      (let [filetype (vim.api.nvim_get_option_value :filetype {: buf})
+            buf-lines (vim.api.nvim_buf_get_lines buf 0 -1 false)]
+        (highlight.ensure)
+        (apply-regions buf buf-lines (scan.regions buf-lines filetype))))))
 
 {: clear : buffer}

@@ -1,5 +1,5 @@
 -- [nfnl] fnl/fugitive-treesitter/config.fnl
-local defaults = {}
+local defaults = {max_lines = 10000}
 local options = vim.deepcopy(defaults)
 local function unknown_keys(opts, known, _3fprefix)
   local unknown = {}
@@ -30,7 +30,9 @@ local function setup(_3fopts)
     vim.notify(("fugitive-treesitter: unknown options specified: " .. table.concat(unknown, ", ")), vim.log.levels.WARN)
   else
   end
-  options = vim.tbl_deep_extend("force", defaults, opts)
+  local merged = vim.tbl_deep_extend("force", defaults, (_3fopts or {}))
+  vim.validate("max_lines", merged.max_lines, "number")
+  options = merged
   return nil
 end
 local function get()
