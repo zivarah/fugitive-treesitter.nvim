@@ -10,10 +10,11 @@ CONTENTS                                        *fugitive-treesitter-contents*
 2. Requirements ............................|fugitive-treesitter-requirements|
 3. Installation ............................|fugitive-treesitter-installation|
 4. Configuration .................................|fugitive-treesitter-config|
-5. Healthcheck ...................................|fugitive-treesitter-health|
-6. Lua module .......................................|fugitive-treesitter-lua|
-7. Credits ......................................|fugitive-treesitter-credits|
-8. Stability ..................................|fugitive-treesitter-stability|
+5. Highlight groups ..........................|fugitive-treesitter-highlights|
+6. Healthcheck ...................................|fugitive-treesitter-health|
+7. Lua module .......................................|fugitive-treesitter-lua|
+8. Credits ......................................|fugitive-treesitter-credits|
+9. Stability ..................................|fugitive-treesitter-stability|
 
 ==============================================================================
 INTRODUCTION                                             *fugitive-treesitter*
@@ -51,12 +52,36 @@ The plugin works with no configuration. To change an option, pass it to
 There are no options yet.
 
 ==============================================================================
+HIGHLIGHT GROUPS                              *fugitive-treesitter-highlights*
+
+This plugin links its own groups to the standard diff groups. This allows you
+to tune the background color of diffs where treesitter highlighting is
+applied independently of other diff workflows if needed.
+
+                                                    *hl-FugitiveTreesitterAdd*
+FugitiveTreesitterAdd
+    The background of an added line. Links to |hl-DiffAdd| when that group has
+    a background of its own.
+
+                                                 *hl-FugitiveTreesitterDelete*
+FugitiveTreesitterDelete
+    The background of a removed line. Links to |hl-DiffDelete| when that group
+    has a background of its own.
+
+Some colorschemes (including the Neovim default) may give one of the linked
+highlight groups no background at all. Since the treesitter highlights will be
+used for the foreground, a background is important for understanding the diff.
+In this case, this plugin will derive a background color from the foreground
+hue of |hl-Added| or |hl-Removed| instead.
+
+==============================================================================
 HEALTHCHECK                                       *fugitive-treesitter-health*
 
 >vim
     :checkhealth fugitive-treesitter
 <
-This reports the requirements and the options in effect.
+This reports the requirements, the options in effect, and how each of the
+plugin's highlight groups resolved.
 
 ==============================================================================
 LUA MODULE                                           *fugitive-treesitter-lua*

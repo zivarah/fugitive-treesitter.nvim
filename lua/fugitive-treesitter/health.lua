@@ -33,12 +33,45 @@ local function report_options()
   local opts = config.get()
   return vim.health.info(("Configured options: " .. vim.inspect(opts)))
 end
+local function check_diff_colors()
+  for _, name in ipairs({"DiffAdd", "DiffDelete"}) do
+    local hl = vim.api.nvim_get_hl(0, {name = name, link = false})
+    if hl.bg then
+      vim.health.ok(string.format("%s has background #%06x", name, hl.bg))
+    else
+      vim.health.info(string.format("%s has no background", name))
+    end
+  end
+  return nil
+end
+local function describe_group(name)
+  local raw = vim.api.nvim_get_hl(0, {name = name})
+  local resolved = vim.api.nvim_get_hl(0, {name = name, link = false})
+  if raw.link then
+    return string.format("%s links to %s", name, raw.link)
+  elseif resolved.bg then
+    return string.format("%s background #%06x", name, resolved.bg)
+  else
+    return string.format("%s has no background", name)
+  end
+end
+local function report_highlights()
+  local highlight = require("fugitive-treesitter.highlight")
+  highlight.ensure()
+  for _, name in ipairs({highlight["add-group"], highlight["delete-group"]}) do
+    vim.health.info(describe_group(name))
+  end
+  return nil
+end
 local function check()
   vim.health.start("fugitive-treesitter: requirements")
   check_neovim()
   check_fugitive()
   check_parsers()
   vim.health.start("fugitive-treesitter: options")
-  return report_options()
+  report_options()
+  vim.health.start("fugitive-treesitter: colors")
+  check_diff_colors()
+  return report_highlights()
 end
 return {check = check, ["version-supported?"] = version_supported_3f, ["minimum-version"] = minimum_version}

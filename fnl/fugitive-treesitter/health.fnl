@@ -38,6 +38,36 @@
         opts (config.get)]
     (vim.health.info (.. "Configured options: " (vim.inspect opts)))))
 
+(fn check-diff-colors []
+  "Report whether the colorscheme gives the standard diff groups a background."
+  (each [_ name (ipairs [:DiffAdd :DiffDelete])]
+    (let [hl (vim.api.nvim_get_hl 0 {: name :link false})]
+      (if hl.bg
+          (vim.health.ok (string.format "%s has background #%06x" name hl.bg))
+          (vim.health.info (string.format "%s has no background" name))))))
+
+(fn describe-group [name]
+  "Describe how one of the plugin's highlight groups resolved.
+
+  Parameters:
+    `name`  The name of the group.
+
+  Returns the description."
+  (let [raw (vim.api.nvim_get_hl 0 {: name})
+        resolved (vim.api.nvim_get_hl 0 {: name :link false})]
+    (if raw.link
+        (string.format "%s links to %s" name raw.link)
+        resolved.bg
+        (string.format "%s background #%06x" name resolved.bg)
+        (string.format "%s has no background" name))))
+
+(fn report-highlights []
+  "Report how each of the plugin's highlight groups resolved."
+  (let [highlight (require :fugitive-treesitter.highlight)]
+    (highlight.ensure)
+    (each [_ name (ipairs [highlight.add-group highlight.delete-group])]
+      (vim.health.info (describe-group name)))))
+
 (fn check []
   "Report the state of the plugin. Neovim calls this function for
   `:checkhealth fugitive-treesitter`."
@@ -46,6 +76,9 @@
   (check-fugitive)
   (check-parsers)
   (vim.health.start "fugitive-treesitter: options")
-  (report-options))
+  (report-options)
+  (vim.health.start "fugitive-treesitter: colors")
+  (check-diff-colors)
+  (report-highlights))
 
 {: check : version-supported? : minimum-version}
