@@ -1,0 +1,143 @@
+*fugitive-treesitter.txt*  Treesitter syntax highlighting in fugitive diffs
+
+Author:  Brian Lyles
+License: MIT
+
+==============================================================================
+CONTENTS                                        *fugitive-treesitter-contents*
+
+1. Introduction .........................................|fugitive-treesitter|
+2. Requirements ............................|fugitive-treesitter-requirements|
+3. Installation ............................|fugitive-treesitter-installation|
+4. Configuration .................................|fugitive-treesitter-config|
+5. Highlight groups ..........................|fugitive-treesitter-highlights|
+6. Healthcheck ...................................|fugitive-treesitter-health|
+7. Lua module .......................................|fugitive-treesitter-lua|
+8. Credits ......................................|fugitive-treesitter-credits|
+9. Stability ..................................|fugitive-treesitter-stability|
+
+==============================================================================
+INTRODUCTION                                             *fugitive-treesitter*
+
+This plugin highlights the code inside |fugitive| diffs with treesitter.
+
+It handles the |:Git| status buffer as well as any buffer with the `git`
+filetype. That includes the output of `:Git diff`, `:Git show` and `:Git log`,
+as well as commit objects.
+
+==============================================================================
+REQUIREMENTS                                *fugitive-treesitter-requirements*
+
+- Neovim 0.12 or newer
+- An installed treesitter parser for each language you want highlighted
+
+|fugitive| is not actually a runtime dependency, but this plugin won't be very
+useful without it.
+
+==============================================================================
+INSTALLATION                                *fugitive-treesitter-installation*
+
+With lazy.nvim: >lua
+    {
+        "zivarah/fugitive-treesitter.nvim",
+    }
+<
+With |vim.pack|: >lua
+    vim.pack.add({
+        "https://github.com/zivarah/fugitive-treesitter.nvim",
+    })
+
+==============================================================================
+CONFIGURATION                                     *fugitive-treesitter-config*
+
+The plugin works with no configuration. To change an option, pass it to
+|fugitive-treesitter.setup()|, or use the equivalent in your plugin manager.
+
+Defaults: >lua
+    require("fugitive-treesitter").setup({
+        max_lines = 10000,
+    })
+<
+                                               *fugitive-treesitter-max_lines*
+max_lines ~
+    Buffers with more lines than this will not be highlighted. This avoids
+    extreme cases like `:Git log -p` over a long range from blocking the UI.
+
+    Set 0 for no limit.
+
+==============================================================================
+HIGHLIGHT GROUPS                              *fugitive-treesitter-highlights*
+
+This plugin links its own groups to the standard diff groups. This allows you
+to tune the background color of diffs where treesitter highlighting is
+applied independently of other diff workflows if needed.
+
+                                                    *hl-FugitiveTreesitterAdd*
+FugitiveTreesitterAdd
+    The background of an added line. Links to |hl-DiffAdd| when that group has
+    a background of its own.
+
+                                                 *hl-FugitiveTreesitterDelete*
+FugitiveTreesitterDelete
+    The background of a removed line. Links to |hl-DiffDelete| when that group
+    has a background of its own.
+
+Some colorschemes (including the Neovim default) may give one of the linked
+highlight groups no background at all. Since the treesitter highlights will be
+used for the foreground, a background is important for understanding the diff.
+In this case, this plugin will derive a background color from the foreground
+hue of |hl-Added| or |hl-Removed| instead.
+
+==============================================================================
+HEALTHCHECK                                       *fugitive-treesitter-health*
+
+>vim
+    :checkhealth fugitive-treesitter
+<
+This reports the requirements, the options in effect, and how each of the
+plugin's highlight groups resolved.
+
+==============================================================================
+LUA MODULE                                           *fugitive-treesitter-lua*
+
+fugitive-treesitter.setup({opts})                *fugitive-treesitter.setup()*
+    Sets up the plugin. Calling this function is optional: the plugin
+    highlights fugitive diffs with no configuration.
+
+    Parameters: ~
+      • {opts}  (`table?`) The options. See |fugitive-treesitter-config|.
+
+fugitive-treesitter.refresh({bufnr})           *fugitive-treesitter.refresh()*
+    Applies the diff highlights of a buffer again. The plugin normally does
+    this by itself. If you find you need to call this yourself under normal
+    use, please file a bug report.
+
+    Parameters: ~
+      • {bufnr}  (`integer?`) The buffer. Defaults to the current buffer.
+
+fugitive-treesitter.enable()                    *fugitive-treesitter.enable()*
+    Starts highlighting fugitive diffs. The plugin does this on startup, so
+    this is only needed after |fugitive-treesitter.disable()|.
+
+fugitive-treesitter.disable()                  *fugitive-treesitter.disable()*
+    Stops highlighting fugitive diffs, and removes the highlights that are
+    already on screen.
+
+==============================================================================
+CREDITS                                          *fugitive-treesitter-credits*
+
+vim-fugitive provides the buffers that this plugin integrates with.
+
+    https://github.com/tpope/vim-fugitive
+
+The idea and general approach is borrowed from Neogit.
+
+    https://github.com/NeogitOrg/neogit
+
+==============================================================================
+STABILITY                                      *fugitive-treesitter-stability*
+
+This help file documents the public API. Everything else is internal, and an
+update can change or remove it without notice.
+
+vim:tw=78:ts=8:ft=help:norl:

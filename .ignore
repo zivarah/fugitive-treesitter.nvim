@@ -1,0 +1,2 @@
+# Keep the compiled Lua out of ripgrep, fd, etc.
+*.lua

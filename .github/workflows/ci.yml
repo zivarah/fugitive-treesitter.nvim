@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # fnlfmt and fennel-ls compile to plain Lua scripts, so they need a Lua
+      # interpreter to build and to run.
+      - uses: leafo/gh-actions-lua@v13
+
+      - name: Restore the lint tools
+        uses: actions/cache@v6
+        with:
+          path: .deps/tools
+          key: tools-${{ runner.os }}-${{ hashFiles('Makefile') }}
+
+      - name: Build the lint tools
+        run: make tools
+
+      - name: Put the lint tools on PATH
+        run: echo "$PWD/.deps/tools/bin" >> "$GITHUB_PATH"
+
+      - name: Check formatting and lints
+        # fennel-ls reads the docsets that flsproject.fnl asks for from
+        # $XDG_DATA_HOME, where `make tools` put them.
+        env:
+          XDG_DATA_HOME: ${{ github.workspace }}/.deps/tools/share
+        run: make lint
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - name: Restore the Neovim plugins
+        uses: actions/cache@v6
+        with:
+          path: .deps/plugins
+          key: deps-build-${{ runner.os }}-${{ hashFiles('Makefile') }}
+
+      - name: Compile the Fennel source
+        run: make build
+
+      # Consumers install the plugin without a build step, so the compiled Lua
+      # must be committed alongside the Fennel it came from.
+      - name: Check that the compiled Lua is committed
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo '::error::Stale Lua. Run `make build` and commit it.'
+            git status --porcelain
+            git --no-pager diff --no-ext-diff
+            exit 1
+          fi
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - name: Restore the Neovim plugins
+        uses: actions/cache@v6
+        with:
+          path: .deps/plugins
+          key: deps-test-${{ runner.os }}-${{ hashFiles('Makefile') }}
+
+      - name: Run the specs
+        run: make test
