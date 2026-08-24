@@ -8,7 +8,7 @@ local function check_neovim()
   if version_supported_3f() then
     return vim.health.ok(string.format("Neovim %s", version))
   else
-    return vim.health.error(string.format("Neovim %s is too old", version), "The plugin needs Neovim 0.12 or newer for `vim.text.diff`.")
+    return vim.health.error(string.format("Neovim %s is too old", version), string.format("The plugin needs Neovim %s or newer.", minimum_version))
   end
 end
 local function check_fugitive()

@@ -12,7 +12,8 @@
     (if (version-supported?)
         (vim.health.ok (string.format "Neovim %s" version))
         (vim.health.error (string.format "Neovim %s is too old" version)
-                          "The plugin needs Neovim 0.12 or newer for `vim.text.diff`."))))
+                          (string.format "The plugin needs Neovim %s or newer."
+                                         minimum-version)))))
 
 (fn check-fugitive []
   "Report whether vim-fugitive is available."
