@@ -92,6 +92,17 @@
                     (assert.equals 1 (length regions))
                     (assert.equals 4 (. regions 1 :first))
                     (assert.equals 8 (. regions 1 :last)))))
+            (it "keeps header-shaped source lines in the body"
+                (fn []
+                  (let [regions (git ["diff --git a/a.lua b/a.lua"
+                                      "--- a/a.lua"
+                                      "+++ b/a.lua"
+                                      "@@ -1 +1 @@"
+                                      "--- tricky old"
+                                      "+++ trick new"])]
+                    (assert.equals 1 (length regions))
+                    (assert.equals 4 (. regions 1 :first))
+                    (assert.equals 6 (. regions 1 :last)))))
             (it "strips a one-letter directory prefix"
                 (fn []
                   (let [regions (git ["diff --git a/a.lua b/a.lua"
