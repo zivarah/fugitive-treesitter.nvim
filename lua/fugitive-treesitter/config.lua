@@ -22,6 +22,23 @@ local function unknown_keys(opts, known, _3fprefix)
   end
   return unknown
 end
+local function validate_options(opts, known, _3fprefix)
+  local prefix = (_3fprefix or "")
+  for key, value in pairs(opts) do
+    local case_3_ = known[key]
+    if (nil ~= case_3_) then
+      local expected = case_3_
+      local path = (prefix .. key)
+      vim.validate(path, value, type(expected))
+      if ("table" == type(expected)) then
+        validate_options(value, expected, (path .. "."))
+      else
+      end
+    else
+    end
+  end
+  return nil
+end
 local function setup(_3fopts)
   vim.validate("opts", _3fopts, "table", true)
   local opts = (_3fopts or {})
@@ -31,7 +48,7 @@ local function setup(_3fopts)
   else
   end
   local merged = vim.tbl_deep_extend("force", defaults, (_3fopts or {}))
-  vim.validate("max_lines", merged.max_lines, "number")
+  validate_options(merged, defaults)
   options = merged
   return nil
 end

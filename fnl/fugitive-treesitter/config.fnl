@@ -24,6 +24,28 @@
               (table.insert unknown name)))))
     unknown))
 
+(fn validate-options [opts known ?prefix]
+  "Check that every recognized option holds a value of the right type.
+
+  The type an option takes is the type of its default, so the defaults are the
+  only place that records it. An unrecognized key is skipped, because
+  `unknown-keys` reports those on its own.
+
+  Parameters:
+    `opts`    The options to check.
+    `known`   The table of options that the plugin has, at the same depth.
+    `?prefix` The dotted path of `opts` so far, pass nil for the top-level call.
+
+  Raises an error that names the option when one holds a value of the wrong
+  type."
+  (let [prefix (or ?prefix "")]
+    (each [key value (pairs opts)]
+      (case (. known key)
+        expected (let [path (.. prefix key)]
+                   (vim.validate path value (type expected))
+                   (when (= :table (type expected))
+                     (validate-options value expected (.. path "."))))))))
+
 (fn setup [?opts]
   "Configure the plugin by merging `?opts` with the default options.
 
@@ -37,7 +59,7 @@
                       (table.concat unknown ", "))
                   vim.log.levels.WARN))
     (let [merged (vim.tbl_deep_extend :force defaults (or ?opts {}))]
-      (vim.validate :max_lines merged.max_lines :number)
+      (validate-options merged defaults)
       (set options merged))))
 
 (fn get []
