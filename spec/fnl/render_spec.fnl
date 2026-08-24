@@ -5,6 +5,10 @@
 
 (local ns (. (vim.api.nvim_get_namespaces) :fugitive-treesitter))
 
+;; The priority that the plugin gives a line background. It is what tells one
+;; apart from the marks above it, which color a treesitter capture.
+(local priority-line 190)
+
 (fn diff-buffer [filetype lines]
   "Make a scratch buffer that holds diff lines.
 
@@ -25,7 +29,7 @@
     `buf`  The buffer number.
 
   Returns a sequential table of
-  `{:row :col :end-col :hl-group :hl-eol :line-hl-group}`."
+  `{:row :col :end-col :hl-group :hl-eol :line-hl-group :priority}`."
   (icollect [_ mark (ipairs (vim.api.nvim_buf_get_extmarks buf ns 0 -1
                                                            {:details true}))]
     (let [[_ row col details] mark]
@@ -34,19 +38,47 @@
        :end-col details.end_col
        :hl-group details.hl_group
        :hl-eol details.hl_eol
-       :line-hl-group details.line_hl_group})))
+       :line-hl-group details.line_hl_group
+       :priority details.priority})))
+
+(fn capture? [mark]
+  "Test whether a mark colors one treesitter capture, rather than a diff line.
+
+  Parameters:
+    `mark`  The mark. See `marks`.
+
+  Returns true for a mark whose group is a capture group."
+  (and mark.hl-group (vim.startswith mark.hl-group "@")))
+
+(fn background? [mark]
+  "Test whether a mark colors the background of a diff line.
+
+  Parameters:
+    `mark`  The mark. See `marks`.
+
+  Returns true for a mark at the priority of a line background."
+  (= priority-line mark.priority))
+
+(fn background-on [buf row]
+  "Find the mark that colors the background of one row.
+
+  Parameters:
+    `buf`  The buffer number.
+    `row`  The 0-based row.
+
+  Returns the mark. See `marks`. Returns nil for a row that has no background."
+  (accumulate [?found nil _ mark (ipairs (marks buf))]
+    (if (and (= row mark.row) (background? mark)) mark ?found)))
 
 (fn line-groups [buf]
   "Collect the line background of each row that has one.
-
-  A line background is the mark that reaches past the end of the text.
 
   Parameters:
     `buf`  The buffer number.
 
   Returns a table from 0-based row to highlight group name."
   (collect [_ mark (ipairs (marks buf))]
-    (if mark.hl-eol
+    (if (background? mark)
         (values mark.row mark.hl-group))))
 
 (fn captures-on [buf row]
@@ -60,7 +92,7 @@
   (let [lines (vim.api.nvim_buf_get_lines buf row (+ row 1) false)
         line (. lines 1)]
     (collect [_ mark (ipairs (marks buf))]
-      (if (and (= row mark.row) mark.hl-group)
+      (if (and (= row mark.row) (capture? mark))
           (values (string.sub line (+ mark.col 1) mark.end-col) mark.hl-group)))))
 
 (fn duplicate-captures-on [buf row]
@@ -101,16 +133,39 @@
                     (assert.same {5 highlight.delete-group
                                   6 highlight.add-group}
                                  (line-groups buf)))))
-            (it "colors a line with hl_eol rather than with a line_hl_group"
+            (it "ends the line background where the line ends"
                 (fn []
-                  ;; A `line_hl_group` background wins over any `hl_group`
-                  ;; above it, whatever the priorities say.
-                  (let [buf (diff-buffer :git one-file)]
+                  ;; Neither `hl_eol` nor a `line_hl_group`, which would both
+                  ;; fill the rest of the screen line. A `line_hl_group` also
+                  ;; wins over any `hl_group` above it, whatever the priorities
+                  ;; say.
+                  (let [buf (diff-buffer :git one-file)
+                        removed (. one-file 6)]
                     (render.buffer buf)
                     (each [_ mark (ipairs (marks buf))]
-                      (assert.is_nil mark.line-hl-group))
-                    (assert.equals highlight.delete-group
-                                   (. (line-groups buf) 5)))))
+                      (assert.is_nil mark.line-hl-group)
+                      (assert.is_falsy mark.hl-eol))
+                    (let [background (background-on buf 5)]
+                      (assert.equals highlight.delete-group background.hl-group)
+                      (assert.equals 0 background.col)
+                      (assert.equals (length removed) background.end-col)))))
+            (it "colors a line that holds nothing but its marker"
+                (fn []
+                  ;; The background never gets narrower than the marker, so an
+                  ;; added empty line still shows a color.
+                  (let [buf (diff-buffer :git
+                                         ["diff --git a/a.lua b/a.lua"
+                                          "--- a/a.lua"
+                                          "+++ b/a.lua"
+                                          "@@ -1,2 +1,3 @@"
+                                          " local m = {}"
+                                          "+"
+                                          " return m"])]
+                    (render.buffer buf)
+                    (let [background (background-on buf 5)]
+                      (assert.equals highlight.add-group background.hl-group)
+                      (assert.equals 0 background.col)
+                      (assert.equals 1 background.end-col)))))
             (it "places treesitter captures shifted past the diff marker"
                 (fn []
                   (let [buf (diff-buffer :git one-file)]

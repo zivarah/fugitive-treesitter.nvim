@@ -110,19 +110,14 @@
 (fn apply-line-backgrounds [buf lines]
   "Color the whole of each added and each removed line.
 
-  The background reaches past the end of the text with `hl_eol` rather than
-  with a `line_hl_group`, so that a later highlight can still draw over it.
-
   Parameters:
     `buf`    The buffer number.
     `lines`  The hunk body lines. See `region-lines`."
-  (each [_ {: row : kind} (ipairs lines)]
+  (each [_ {: row : kind : col : text} (ipairs lines)]
     (case (kind->hl-group kind)
       hl-group (set-extmark buf row 0
-                            {:end_row (+ row 1)
-                             :end_col 0
+                            {:end_col (+ col (length text))
                              :hl_group hl-group
-                             :hl_eol true
                              :priority priority-line}))))
 
 (fn resolve-lang [filepath]

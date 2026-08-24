@@ -78,10 +78,12 @@ local function apply_line_backgrounds(buf, lines)
   for _, _8_ in ipairs(lines) do
     local row = _8_.row
     local kind = _8_.kind
+    local col = _8_.col
+    local text = _8_.text
     local case_9_ = kind__3ehl_group(kind)
     if (nil ~= case_9_) then
       local hl_group = case_9_
-      set_extmark(buf, row, 0, {end_row = (row + 1), end_col = 0, hl_group = hl_group, hl_eol = true, priority = priority_line})
+      set_extmark(buf, row, 0, {end_col = (col + #text), hl_group = hl_group, priority = priority_line})
     else
     end
   end
