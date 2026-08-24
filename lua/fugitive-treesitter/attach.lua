@@ -82,14 +82,40 @@ local function attach_loaded()
   end
   return nil
 end
+local function highlighted_buffers()
+  local tbl_26_ = {}
+  local i_27_ = 0
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    local val_28_
+    if (vim.api.nvim_buf_is_loaded(buf) and attachers[vim.api.nvim_get_option_value("filetype", {buf = buf})]) then
+      val_28_ = buf
+    else
+      val_28_ = nil
+    end
+    if (nil ~= val_28_) then
+      i_27_ = (i_27_ + 1)
+      tbl_26_[i_27_] = val_28_
+    else
+    end
+  end
+  return tbl_26_
+end
+local function redraw_loaded()
+  highlight.invalidate()
+  for _, buf in ipairs(highlighted_buffers()) do
+    refresh(buf)
+  end
+  return nil
+end
+local redraw = de_spam(redraw_loaded)
 local function enable()
   do
     local group = vim.api.nvim_create_augroup(augroup, {clear = true})
-    local function _12_(ev)
+    local function _14_(ev)
       return attach(ev.buf)
     end
-    vim.api.nvim_create_autocmd("FileType", {group = group, pattern = vim.tbl_keys(attachers), callback = _12_})
-    vim.api.nvim_create_autocmd("ColorScheme", {group = group, callback = highlight.invalidate})
+    vim.api.nvim_create_autocmd("FileType", {group = group, pattern = vim.tbl_keys(attachers), callback = _14_})
+    vim.api.nvim_create_autocmd("ColorScheme", {group = group, callback = redraw})
   end
   return attach_loaded()
 end

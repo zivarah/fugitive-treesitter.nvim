@@ -111,6 +111,24 @@
     (when (vim.api.nvim_buf_is_loaded buf)
       (attach buf))))
 
+(fn highlighted-buffers []
+  "Collect the loaded buffers that the plugin highlights.
+
+  Returns a sequential table of buffer numbers."
+  (icollect [_ buf (ipairs (vim.api.nvim_list_bufs))]
+    (if (and (vim.api.nvim_buf_is_loaded buf)
+             (. attachers (vim.api.nvim_get_option_value :filetype {: buf})))
+        buf)))
+
+(fn redraw-loaded []
+  "Define the highlight groups again, and apply the highlights of every buffer
+  that the plugin highlights."
+  (highlight.invalidate)
+  (each [_ buf (ipairs (highlighted-buffers))]
+    (refresh buf)))
+
+(local redraw (de-spam redraw-loaded))
+
 (fn enable []
   "Start highlighting fugitive diffs, including in already-loaded buffers."
   (let [group (vim.api.nvim_create_augroup augroup {:clear true})]
@@ -118,8 +136,10 @@
                                  {: group
                                   :pattern (vim.tbl_keys attachers)
                                   :callback (fn [ev] (attach ev.buf))})
-    (vim.api.nvim_create_autocmd :ColorScheme
-                                 {: group :callback highlight.invalidate}))
+    ;; A colorscheme runs `:highlight clear`, which removes the plugin's groups
+    ;; but leaves its extmarks in place, pointing at groups that no longer
+    ;; exist.
+    (vim.api.nvim_create_autocmd :ColorScheme {: group :callback redraw}))
   (attach-loaded))
 
 (fn disable []
