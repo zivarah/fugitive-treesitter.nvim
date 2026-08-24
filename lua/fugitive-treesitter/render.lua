@@ -10,16 +10,26 @@ local priority_syntax = 210
 local function set_extmark(buf, row, col, opts)
   return pcall(vim.api.nvim_buf_set_extmark, buf, ns, row, col, vim.tbl_extend("force", opts, {strict = false}))
 end
+local function marker_3f(marker)
+  local body_3f = true
+  for i = 1, #marker do
+    if not body_3f then break end
+    body_3f = scan["body-prefix?"](char_at(marker, i))
+  end
+  return body_3f
+end
 local function region_lines(buf_lines, region)
+  local text_col = region["text-col"]
+  local marker_from = (1 + (text_col - region["marker-width"]))
   local tbl_26_ = {}
   local i_27_ = 0
   for row = region.first, (region.last - 1) do
     local val_28_
     do
       local _3fline = buf_lines[(row + 1)]
-      local _3fprefix = (_3fline and char_at(_3fline, 1))
-      if (_3fprefix and scan["body-prefix?"](_3fprefix)) then
-        val_28_ = {row = row, kind = scan["line-kind"](_3fprefix), text = string.sub(_3fline, 2)}
+      local _3fmarker = (_3fline and string.sub(_3fline, marker_from, text_col))
+      if (_3fmarker and marker_3f(_3fmarker)) then
+        val_28_ = {row = row, col = text_col, kind = scan["line-kind"](_3fmarker), text = string.sub(_3fline, (text_col + 1))}
       else
         val_28_ = nil
       end
@@ -40,9 +50,9 @@ local function side_lines(lines, kind, paint_context_3f)
     do
       local case_4_ = line.kind
       if (case_4_ == kind) then
-        val_28_ = {row = line.row, text = line.text, ["paint?"] = true}
+        val_28_ = {row = line.row, col = line.col, text = line.text, ["paint?"] = true}
       elseif (case_4_ == "context") then
-        val_28_ = {row = line.row, text = line.text, ["paint?"] = paint_context_3f}
+        val_28_ = {row = line.row, col = line.col, text = line.text, ["paint?"] = paint_context_3f}
       else
         val_28_ = nil
       end
@@ -117,7 +127,7 @@ local function apply_capture(buf, lines, hl_group, node)
         else
           to = #line.text
         end
-        set_extmark(buf, line.row, (from + 1), {end_col = (to + 1), hl_group = hl_group, priority = priority_syntax})
+        set_extmark(buf, line.row, (from + line.col), {end_col = (to + line.col), hl_group = hl_group, priority = priority_syntax})
       else
       end
     else

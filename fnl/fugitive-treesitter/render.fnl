@@ -1,8 +1,10 @@
 ;;; Putting the diff highlights on a buffer as extmarks.
 ;;;
 ;;; The hunk body is parsed without its diff markers, so every column that
-;;; comes back from treesitter is one to the left of where it belongs in the
-;;; buffer. Each extmark shifts back by one to compensate.
+;;; comes back from treesitter sits to the left of where it belongs in the
+;;; buffer. Each extmark shifts back by the width of the marker to compensate.
+;;; That width is one character for an ordinary diff, and one per parent for a
+;;; combined diff.
 
 (local {: char-at} (require :fugitive-treesitter.lib.str))
 (local config (require :fugitive-treesitter.config))
@@ -34,6 +36,18 @@
   (pcall vim.api.nvim_buf_set_extmark buf ns row col
          (vim.tbl_extend :force opts {:strict false})))
 
+(fn marker? [marker]
+  "Test whether a line belongs to a hunk body, from its marker characters.
+
+  Parameters:
+    `marker`  The marker characters of the line, one per parent for a combined
+              diff.
+
+  Returns true if every column holds a hunk body marker. An empty marker counts,
+  because it comes from a blank context line."
+  (faccumulate [body? true i 1 (length marker) &until (not body?)]
+    (scan.body-prefix? (char-at marker i))))
+
 (fn region-lines [buf-lines region]
   "Collect the hunk body lines of a region.
 
@@ -41,14 +55,22 @@
     `buf-lines`  All the lines of the buffer, 1-indexed.
     `region`     The region. See `scan.regions`.
 
-  Returns a sequential table of `{:row :kind :text}`. `row` is the 0-based
-  buffer row, `kind` is the line kind (see `scan.line-kind`), and `text` is the
-  line without its marker. A line that is not part of a hunk body is left out."
-  (fcollect [row region.first (- region.last 1)]
-    (let [?line (. buf-lines (+ row 1))
-          ?prefix (and ?line (char-at ?line 1))]
-      (if (and ?prefix (scan.body-prefix? ?prefix))
-          {: row :kind (scan.line-kind ?prefix) :text (string.sub ?line 2)}))))
+  Returns a sequential table of `{:row :col :kind :text}`. `row` is the 0-based
+  buffer row, `col` is the 0-based buffer column where `text` starts, `kind` is
+  the line kind (see `scan.line-kind`), and `text` is the line without its
+  marker. A line that is not part of a hunk body is left out."
+  (let [text-col region.text-col
+        ;; The marker is the columns that end where the text starts, which is
+        ;; column 1 only for a format that puts the marker first.
+        marker-from (+ 1 (- text-col region.marker-width))]
+    (fcollect [row region.first (- region.last 1)]
+      (let [?line (. buf-lines (+ row 1))
+            ?marker (and ?line (string.sub ?line marker-from text-col))]
+        (if (and ?marker (marker? ?marker))
+            {: row
+             :col text-col
+             :kind (scan.line-kind ?marker)
+             :text (string.sub ?line (+ text-col 1))})))))
 
 (fn side-lines [lines kind paint-context?]
   "Reconstruct one side of a hunk body.
@@ -63,13 +85,16 @@
                       `:delete`. See `scan.line-kind`.
     `paint-context?`  Whether this side colors its context lines.
 
-  Returns a sequential table of `{:row :text :paint?}`, in buffer order. A line
-  with a false `paint?` is present only to give the parser its surrounding
-  code."
+  Returns a sequential table of `{:row :col :text :paint?}`, in buffer order.
+  `row` and `col` say where `text` starts in the buffer. A line with a false
+  `paint?` is present only to give the parser its surrounding code."
   (icollect [_ line (ipairs lines)]
     (match line.kind
-      kind {:row line.row :text line.text :paint? true}
-      :context {:row line.row :text line.text :paint? paint-context?})))
+      kind {:row line.row :col line.col :text line.text :paint? true}
+      :context {:row line.row
+                :col line.col
+                :text line.text
+                :paint? paint-context?})))
 
 (fn kind->hl-group [kind]
   "Get the highlight group that colors a whole diff line.
@@ -143,8 +168,8 @@
         line (when line.paint?
                (let [from (if (= row start-row) start-col 0)
                      to (if (= row end-row) end-col (length line.text))]
-                 (set-extmark buf line.row (+ from 1)
-                              {:end_col (+ to 1)
+                 (set-extmark buf line.row (+ from line.col)
+                              {:end_col (+ to line.col)
                                :hl_group hl-group
                                :priority priority-syntax})))))))
 

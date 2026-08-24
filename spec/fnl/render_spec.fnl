@@ -133,6 +133,31 @@
                                   5 highlight.add-group}
                                  (line-groups buf))
                     (assert.equals "@number" (. (captures-on buf 4) :30)))))
+            (it "highlights a combined diff in a status buffer"
+                (fn []
+                  ;; Fugitive inlines a combined diff for a conflicted file. Its
+                  ;; body lines carry one marker per parent, so the code starts
+                  ;; two columns in.
+                  (let [buf (diff-buffer :fugitive
+                                         ["Unstaged (1)"
+                                          "U a.lua"
+                                          "@@@ -1,3 -1,3 +1,3 @@@"
+                                          "  local m = {}"
+                                          "- local timeout = 30"
+                                          " -local timeout = 45"
+                                          "++local timeout = 60"
+                                          "  return m"])]
+                    (render.buffer buf)
+                    (assert.same {4 highlight.delete-group
+                                  5 highlight.delete-group
+                                  6 highlight.add-group}
+                                 (line-groups buf))
+                    ;; Both markers are stripped, so `local` is a keyword rather
+                    ;; than a variable, and no capture lands on a marker.
+                    (assert.equals "@keyword" (. (captures-on buf 6) :local))
+                    (assert.equals "@number" (. (captures-on buf 6) :60))
+                    (assert.equals "@number" (. (captures-on buf 4) :30))
+                    (assert.is_nil (. (captures-on buf 6) "+")))))
             (it "replaces the highlights rather than stacking them"
                 (fn []
                   (let [buf (diff-buffer :git one-file)]

@@ -25,6 +25,13 @@ It handles the |:Git| status buffer as well as any buffer with the `git`
 filetype. That includes the output of `:Git diff`, `:Git show` and `:Git log`,
 as well as commit objects.
 
+Two shapes of diff are read:
+
+- An ordinary diff, with one marker column per line.
+- A combined diff, with one marker column per parent. Fugitive writes one of
+  these for a conflicted file in the status buffer, and `git show` writes one
+  for a merge commit. See |diff-format|.
+
 ==============================================================================
 REQUIREMENTS                                *fugitive-treesitter-requirements*
 

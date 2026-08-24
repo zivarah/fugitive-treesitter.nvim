@@ -2,7 +2,7 @@
 
 Treesitter syntax highlighting for the code inside [vim-fugitive][fugitive]
 diffs. Supports the fugitive status buffer as well as fugitive-driven diffs and
-commit buffers.
+commit buffers, including combined diffs of a conflicted file.
 
 Example (status buffer):
 
