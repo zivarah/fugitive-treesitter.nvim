@@ -24,13 +24,25 @@
 (fn line-kind [prefix]
   "Classify a hunk body line by its diff marker.
 
+  A combined diff writes one marker per parent, so a marker can be several
+  characters wide. A `+` in any column means the result holds the line and that
+  parent does not, and a `-` in any column means a parent holds the line and the
+  result does not. The two never appear together, because a line is either in
+  the result or not. See |diff-format|.
+
+  Every column of `prefix` therefore describes the same line, from the point of
+  view of one parent. The columns are peers, so their order carries no meaning.
+  Do not use this function for a format whose columns are nested levels instead,
+  because collapsing those loses the distinction between them.
+
   Parameters:
-    `prefix`  The diff marker of the line. See `body-prefix?`.
+    `prefix`  The diff marker of the line, one character per parent. See
+              `body-prefix?`.
 
   Returns `:add` for an added line, `:delete` for a removed line, or `:context`
   for a line that both sides of the change share."
-  (if (= "+" prefix) :add
-      (= "-" prefix) :delete
+  (if (prefix:find "+" 1 true) :add
+      (prefix:find "-" 1 true) :delete
       :context))
 
 (fn body-line? [line]
@@ -66,6 +78,18 @@
     (set i (+ i 1)))
   i)
 
+(fn marker-width [header]
+  "Find how many marker characters each body line of a hunk carries.
+
+  Parameters:
+    `header`  The hunk header line.
+
+  Returns 1 for an ordinary diff. Returns one per parent for a combined diff,
+  whose header carries one `@` per parent plus one. See |diff-format|."
+  (-> (length (header:match "^@+"))
+      (- 1)
+      (math.max 1)))
+
 (fn hunk-region [lines i state]
   "Make the region for the hunk body below a hunk header.
 
@@ -81,11 +105,14 @@
   from. The region is nil when there is no path or no body."
   (let [start (+ i 1)
         stop (hunk-body-end lines start)
+        width (marker-width (. lines i))
         ?old-path (or state.old-path state.new-path)
         ?new-path (or state.new-path state.old-path)
         region (if (and ?old-path (> stop start))
                    {:first (- start 1)
                     :last (- stop 1)
+                    :marker-width width
+                    :text-col width
                     :old-path ?old-path
                     :new-path ?new-path})]
     (values region stop)))
@@ -175,11 +202,16 @@
                 output.
 
   Returns a sequential table of regions, in buffer order. A region holds:
-    `first`     The 0-based first row of the hunk body.
-    `last`      The 0-based row just past the hunk body.
-    `old-path`  The path of the file before the change.
-    `new-path`  The path of the file after the change. This differs from
-                `old-path` only for a rename.
+    `first`         The 0-based first row of the hunk body.
+    `last`          The 0-based row just past the hunk body.
+    `marker-width`  The number of marker characters that each body line
+                    carries. See `marker-width`.
+    `text-col`      The 0-based column where the text of a body line starts.
+                    The marker characters are the `marker-width` columns that
+                    end there.
+    `old-path`      The path of the file before the change.
+    `new-path`      The path of the file after the change. This differs from
+                    `old-path` only for a rename.
 
   Returns an empty table when the buffer holds no hunk that belongs to a known
   file."

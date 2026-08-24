@@ -25,6 +25,24 @@
                   (assert.is_false (scan.body-prefix? "@"))
                   (assert.is_false (scan.body-prefix? "\\"))))))
 
+(describe :line-kind
+          (fn []
+            (it "reads an ordinary marker"
+                (fn []
+                  (assert.equals :add (scan.line-kind "+"))
+                  (assert.equals :delete (scan.line-kind "-"))
+                  (assert.equals :context (scan.line-kind " "))
+                  (assert.equals :context (scan.line-kind ""))))
+            (it "reads a combined marker from any column"
+                (fn []
+                  (assert.equals :add (scan.line-kind "++"))
+                  (assert.equals :add (scan.line-kind "+ "))
+                  (assert.equals :add (scan.line-kind " +"))
+                  (assert.equals :delete (scan.line-kind "--"))
+                  (assert.equals :delete (scan.line-kind "- "))
+                  (assert.equals :delete (scan.line-kind " -"))
+                  (assert.equals :context (scan.line-kind "  "))))))
+
 (describe "regions in git format"
           (fn []
             (it "finds the body of one hunk"
@@ -41,6 +59,8 @@
                     (assert.equals 1 (length regions))
                     (assert.same {:first 5
                                   :last 9
+                                  :marker-width 1
+                                  :text-col 1
                                   :old-path :lua/foo.lua
                                   :new-path :lua/foo.lua}
                                  (. regions 1)))))
@@ -156,6 +176,18 @@
                     (assert.equals 2 (length regions))
                     (assert.equals :a.lua (. regions 1 :new-path))
                     (assert.equals :a.lua (. regions 2 :new-path)))))
+            (it "reads the marker width of a combined diff"
+                (fn []
+                  ;; A combined diff header carries one `@` per parent plus one.
+                  (let [regions (git ["diff --cc a.lua"
+                                      "--- a/a.lua"
+                                      "+++ b/a.lua"
+                                      "@@@ -1,2 -1,2 +1,2 @@@"
+                                      "- local timeout = 30"
+                                      " -local timeout = 45"
+                                      "++local timeout = 60"])]
+                    (assert.equals 1 (length regions))
+                    (assert.equals 2 (. regions 1 :marker-width)))))
             (it "gives nothing for a hunk with no file header"
                 (fn []
                   (assert.same {}
@@ -188,6 +220,8 @@
                     (assert.equals 1 (length regions))
                     (assert.same {:first 5
                                   :last 7
+                                  :marker-width 1
+                                  :text-col 1
                                   :old-path :lua/foo.lua
                                   :new-path :lua/foo.lua}
                                  (. regions 1)))))

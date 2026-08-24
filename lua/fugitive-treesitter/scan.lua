@@ -5,9 +5,9 @@ local function body_prefix_3f(sigil)
   return (("+" == sigil) or ("-" == sigil) or (" " == sigil) or ("" == sigil))
 end
 local function line_kind(prefix)
-  if ("+" == prefix) then
+  if prefix:find("+", 1, true) then
     return "add"
-  elseif ("-" == prefix) then
+  elseif prefix:find("-", 1, true) then
     return "delete"
   else
     return "context"
@@ -27,14 +27,18 @@ local function hunk_body_end(lines, start)
   end
   return i
 end
+local function marker_width(header)
+  return math.max((#header:match("^@+") - 1), 1)
+end
 local function hunk_region(lines, i, state)
   local start = (i + 1)
   local stop = hunk_body_end(lines, start)
+  local width = marker_width(lines[i])
   local _3fold_path = (state["old-path"] or state["new-path"])
   local _3fnew_path = (state["new-path"] or state["old-path"])
   local region
   if (_3fold_path and (stop > start)) then
-    region = {first = (start - 1), last = (stop - 1), ["old-path"] = _3fold_path, ["new-path"] = _3fnew_path}
+    region = {first = (start - 1), last = (stop - 1), ["marker-width"] = width, ["text-col"] = width, ["old-path"] = _3fold_path, ["new-path"] = _3fnew_path}
   else
     region = nil
   end
