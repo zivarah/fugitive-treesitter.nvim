@@ -149,10 +149,21 @@
                                   :callback redraw}))
   (attach-loaded))
 
+(fn retire-listeners []
+  "Retire the change listener of every buffer that has one.
+
+  A listener reads its generation each time it runs, and detaches itself once a
+  later generation supersedes it. So this does not detach a listener at once,
+  but it does stop one from highlighting again."
+  (each [_ buf (ipairs (vim.api.nvim_list_bufs))]
+    (when (. vim.b buf generation-key)
+      (next-generation buf))))
+
 (fn disable []
   "Stop highlighting fugitive diffs, and remove the highlights that are already
   on screen."
   (pcall vim.api.nvim_del_augroup_by_name augroup)
+  (retire-listeners)
   (each [_ buf (ipairs (vim.api.nvim_list_bufs))]
     (when (vim.api.nvim_buf_is_loaded buf)
       (render.clear buf))))

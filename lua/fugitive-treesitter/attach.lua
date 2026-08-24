@@ -120,8 +120,18 @@ local function enable()
   end
   return attach_loaded()
 end
+local function retire_listeners()
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.b[buf][generation_key] then
+      next_generation(buf)
+    else
+    end
+  end
+  return nil
+end
 local function disable()
   pcall(vim.api.nvim_del_augroup_by_name, augroup)
+  retire_listeners()
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
     if vim.api.nvim_buf_is_loaded(buf) then
       render.clear(buf)
