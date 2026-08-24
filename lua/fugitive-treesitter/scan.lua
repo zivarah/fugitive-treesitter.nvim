@@ -2,7 +2,7 @@
 local _local_1_ = require("fugitive-treesitter.lib.str")
 local char_at = _local_1_["char-at"]
 local function body_prefix_3f(sigil)
-  return (("+" == sigil) or ("-" == sigil) or (" " == sigil))
+  return (("+" == sigil) or ("-" == sigil) or (" " == sigil) or ("" == sigil))
 end
 local function body_line_3f(line)
   local sigil = char_at(line, 1)

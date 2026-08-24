@@ -140,6 +140,25 @@
                     (let [before (length (marks buf))]
                       (render.buffer buf)
                       (assert.equals before (length (marks buf)))))))
+            (it "colors past an empty context line"
+                (fn []
+                  ;; Under `diff.suppressBlankEmpty` git writes a blank context
+                  ;; line with no leading space. Everything below it still
+                  ;; belongs to the hunk.
+                  (let [buf (diff-buffer :git
+                                         ["diff --git a/a.lua b/a.lua"
+                                          "--- a/a.lua"
+                                          "+++ b/a.lua"
+                                          "@@ -1,4 +1,4 @@"
+                                          " local m = {}"
+                                          ""
+                                          "-local timeout = 30"
+                                          "+local timeout = 60"])]
+                    (render.buffer buf)
+                    (assert.same {6 highlight.delete-group
+                                  7 highlight.add-group}
+                                 (line-groups buf))
+                    (assert.equals "@number" (. (captures-on buf 6) :30)))))
             (it "still colors lines when the language has no parser"
                 (fn []
                   (let [buf (diff-buffer :git

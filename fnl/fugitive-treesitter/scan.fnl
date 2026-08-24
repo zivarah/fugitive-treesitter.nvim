@@ -10,12 +10,16 @@
 (fn body-prefix? [sigil]
   "Test whether a sigil character is the marker of a hunk body line.
 
+  An empty line counts as a blank context line. Git writes a blank context line
+  as a single space, but it writes it as an empty line under
+  `diff.suppressBlankEmpty`.
+
   Parameters:
     `sigil`  The first byte of a line, or an empty string for an empty line.
 
   Returns true for the marker of a context line, an added line, or a removed
   line."
-  (or (= "+" sigil) (= "-" sigil) (= " " sigil)))
+  (or (= "+" sigil) (= "-" sigil) (= " " sigil) (= "" sigil)))
 
 (fn body-line? [line]
   "Test whether a diff line belongs to the body of a hunk.

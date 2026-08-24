@@ -17,11 +17,13 @@
                   (assert.is_true (scan.body-prefix? "+"))
                   (assert.is_true (scan.body-prefix? "-"))
                   (assert.is_true (scan.body-prefix? " "))))
+            (it "accepts an empty line as a blank context line"
+                (fn []
+                  (assert.is_true (scan.body-prefix? ""))))
             (it "rejects anything else"
                 (fn []
                   (assert.is_false (scan.body-prefix? "@"))
-                  (assert.is_false (scan.body-prefix? "\\"))
-                  (assert.is_false (scan.body-prefix? ""))))))
+                  (assert.is_false (scan.body-prefix? "\\"))))))
 
 (describe "regions in git format"
           (fn []
@@ -54,6 +56,22 @@
                     (assert.equals 1 (length regions))
                     (assert.equals 4 (. regions 1 :first))
                     (assert.equals 7 (. regions 1 :last)))))
+            (it "keeps an empty context line in the body"
+                (fn []
+                  ;; Under `diff.suppressBlankEmpty` git writes a blank context
+                  ;; line with no leading space, and the body carries on below
+                  ;; it.
+                  (let [regions (git ["diff --git a/a.lua b/a.lua"
+                                      "--- a/a.lua"
+                                      "+++ b/a.lua"
+                                      "@@ -1,4 +1,4 @@"
+                                      " local m = {}"
+                                      ""
+                                      "-local a = 1"
+                                      "+local a = 2"])]
+                    (assert.equals 1 (length regions))
+                    (assert.equals 4 (. regions 1 :first))
+                    (assert.equals 8 (. regions 1 :last)))))
             (it "strips a one-letter directory prefix"
                 (fn []
                   (let [regions (git ["diff --git a/a.lua b/a.lua"
