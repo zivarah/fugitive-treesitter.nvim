@@ -171,7 +171,9 @@
   (let [source (table.concat (icollect [_ line (ipairs lines)] line.text) "\n")
         parser (vim.treesitter.get_string_parser source lang)
         apply-to-tree (partial apply-tree-captures buf lines source)]
-    (parser:parse)
+    ;; `true` parses the injected languages too, so that a fenced code block or
+    ;; an embedded script gets the captures of its own language.
+    (parser:parse true)
     (parser:for_each_tree apply-to-tree)))
 
 (fn apply-side [buf lang-cache filepath lines]

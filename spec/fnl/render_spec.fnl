@@ -211,6 +211,22 @@
                     (assert.equals "@keyword" (. (captures-on buf 4) :local))
                     (assert.equals "@keyword.return"
                                    (. (captures-on buf 7) :return)))))
+            (it "colors an injected language inside a hunk"
+                (fn []
+                  ;; The markdown parser injects lua into the fenced block, so
+                  ;; the code inside it gets lua captures rather than none.
+                  (let [buf (diff-buffer :git
+                                         ["diff --git a/a.md b/a.md"
+                                          "--- a/a.md"
+                                          "+++ b/a.md"
+                                          "@@ -1,3 +1,3 @@"
+                                          " ```lua"
+                                          "-local timeout = 30"
+                                          "+local timeout = 60"
+                                          " ```"])]
+                    (render.buffer buf)
+                    (assert.equals "@keyword" (. (captures-on buf 5) :local))
+                    (assert.equals "@number" (. (captures-on buf 6) :60)))))
             (it "colors a side whose file has no parser"
                 (fn []
                   ;; The new side has no parser, which must not stop the old

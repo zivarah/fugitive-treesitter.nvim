@@ -160,7 +160,7 @@ local function apply_treesitter(buf, lang, lines)
     return apply_tree_captures(buf, lines, source, ...)
   end
   apply_to_tree = _23_
-  parser:parse()
+  parser:parse(true)
   return parser:for_each_tree(apply_to_tree)
 end
 local function apply_side(buf, lang_cache, filepath, lines)
