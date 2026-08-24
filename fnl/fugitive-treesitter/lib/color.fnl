@@ -87,14 +87,14 @@
                `moving-offset`.
 
   Returns three values: the red, the green and the blue offset, each 0 to 1."
-  (vim.fn.assert_inrange 0 360 degrees)
+  (assert (<= 0 degrees 360) (.. "hue out of range: " degrees))
   (if (< degrees 60) (values chroma moving 0) ; red to yellow
       (< degrees 120) (values moving chroma 0) ; yellow to green
       (< degrees 180) (values 0 chroma moving) ; green to cyan
       (< degrees 240) (values 0 moving chroma) ; cyan to blue
       (< degrees 300) (values moving 0 chroma) ; blue to magenta
-      (<= degrees 360) (values chroma 0 moving) ; magenta to red
-      nil))
+      ;; magenta to red
+      (values chroma 0 moving)))
 
 (fn join-channels [r g b]
   "Combine three channels into a 24-bit color.

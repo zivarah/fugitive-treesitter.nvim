@@ -16,7 +16,7 @@ local function moving_offset(degrees, chroma)
   return (chroma * (1 - math.abs((ramp - 1))))
 end
 local function sector_channels(degrees, chroma, moving)
-  vim.fn.assert_inrange(0, 360, degrees)
+  assert(((0 <= degrees) and (degrees <= 360)), ("hue out of range: " .. degrees))
   if (degrees < 60) then
     return chroma, moving, 0
   elseif (degrees < 120) then
@@ -27,10 +27,8 @@ local function sector_channels(degrees, chroma, moving)
     return 0, moving, chroma
   elseif (degrees < 300) then
     return moving, 0, chroma
-  elseif (degrees <= 360) then
-    return chroma, 0, moving
   else
-    return nil
+    return chroma, 0, moving
   end
 end
 local function join_channels(r, g, b)
