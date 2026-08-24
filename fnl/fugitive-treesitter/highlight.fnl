@@ -1,16 +1,10 @@
 ;;; The highlight groups that the plugin puts on diff lines.
 
 (local color (require :fugitive-treesitter.lib.color))
+(local config (require :fugitive-treesitter.config))
 
 (local add-group :FugitiveTreesitterAdd)
 (local delete-group :FugitiveTreesitterDelete)
-
-;; A base color stands in for a diff group that has no background of its own. It
-;; keeps only the hue of the accent it comes from, and takes a low saturation
-;; and a lightness close to the editor background, so that it reads as a tint
-;; behind the code rather than a block of color.
-(local base-lightness {:dark 0.18 :light 0.85})
-(local base-saturation 0.35)
 
 (var defined? false)
 
@@ -27,14 +21,20 @@
 (fn accent-bg [accent-group]
   "Derive a diff background from the foreground of a semantic accent group.
 
+  The derived color keeps the hue of the accent alone, and takes its saturation
+  and its lightness from the `derived_background` option. Those default to a low
+  saturation and a lightness close to the editor background, so that the color
+  reads as a tint behind the code rather than a block of color.
+
   Parameters:
     `accent-group`  The name of the group to take the foreground from.
 
   Returns the 24-bit RGB integer, or nil if `accent-group` has no foreground."
-  (let [hl (resolved-hl accent-group)]
+  (let [hl (resolved-hl accent-group)
+        opts (config.get)]
     (if hl.fg
-        (color.recolor hl.fg base-saturation
-                       (. base-lightness vim.o.background)))))
+        (color.recolor hl.fg opts.derived_background.saturation
+                       (. opts.derived_background.lightness vim.o.background)))))
 
 (fn define-line [name diff-group accent-group]
   "Define the line group of one diff side.

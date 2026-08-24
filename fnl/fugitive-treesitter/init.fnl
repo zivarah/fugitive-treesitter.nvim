@@ -6,10 +6,11 @@
 (fn setup [?opts]
   "Set up the plugin.
 
-  Calling this function is optional. The plugin highlights fugitive diffs with
-  no configuration at all, so call it only to change an option.
+  Calling this function is optional: the plugin highlights fugitive diffs with
+  no configuration.
 
-  Any buffer that is highlighted already is re-highlighted.
+  Re-highlights any already-highlighted buffers, so the new options take effect
+  immediately.
 
   Parameters:
     `?opts`  The user options. See |fugitive-treesitter-config|."

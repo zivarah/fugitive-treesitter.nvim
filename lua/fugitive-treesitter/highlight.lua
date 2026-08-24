@@ -1,17 +1,17 @@
 -- [nfnl] fnl/fugitive-treesitter/highlight.fnl
 local color = require("fugitive-treesitter.lib.color")
+local config = require("fugitive-treesitter.config")
 local add_group = "FugitiveTreesitterAdd"
 local delete_group = "FugitiveTreesitterDelete"
-local base_lightness = {dark = 0.18, light = 0.85}
-local base_saturation = 0.35
 local defined_3f = false
 local function resolved_hl(group)
   return vim.api.nvim_get_hl(0, {name = group, link = false})
 end
 local function accent_bg(accent_group)
   local hl = resolved_hl(accent_group)
+  local opts = config.get()
   if hl.fg then
-    return color.recolor(hl.fg, base_saturation, base_lightness[vim.o.background])
+    return color.recolor(hl.fg, opts.derived_background.saturation, opts.derived_background.lightness[vim.o.background])
   else
     return nil
   end

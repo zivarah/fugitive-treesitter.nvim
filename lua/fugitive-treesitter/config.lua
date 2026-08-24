@@ -1,5 +1,5 @@
 -- [nfnl] fnl/fugitive-treesitter/config.fnl
-local defaults = {max_lines = 10000}
+local defaults = {max_lines = 10000, derived_background = {saturation = 0.35, lightness = {dark = 0.18, light = 0.85}}}
 local options = vim.deepcopy(defaults)
 local function unknown_keys(opts, known, _3fprefix)
   local unknown = {}

@@ -60,9 +60,15 @@ CONFIGURATION                                     *fugitive-treesitter-config*
 The plugin works with no configuration. To change an option, pass it to
 |fugitive-treesitter.setup()|, or use the equivalent in your plugin manager.
 
+Options are merged with the defaults using |vim.tbl_deep_extend()|.
+
 Defaults: >lua
     require("fugitive-treesitter").setup({
         max_lines = 10000,
+        derived_background = {
+            saturation = 0.35,
+            lightness = { dark = 0.18, light = 0.85 },
+        },
     })
 <
                                                *fugitive-treesitter-max_lines*
@@ -71,6 +77,22 @@ max_lines ~
     extreme cases like `:Git log -p` over a long range from blocking the UI.
 
     Set 0 for no limit.
+
+                                      *fugitive-treesitter-derived_background*
+derived_background ~
+    The saturation and the lightness of the background that the plugin builds
+    when the colorscheme gives |hl-DiffAdd| or |hl-DiffDelete| no background
+    of its own. The hue comes from |hl-Added| or |hl-Removed|, and these two
+    numbers say what to rebuild it with. See |fugitive-treesitter-highlights|.
+
+    Both settings use values from 0 to 1.
+
+    Raise `saturation` for a background with more color in it.
+
+    A lightness of 0 is black and a lightness of 1 is white. This means you
+    should raise `lightness.dark` to make the diff background stand out more
+    against a dark editor background and lower `lightness.light` to make it
+    stand out more against a light editor background.
 
 ==============================================================================
 HIGHLIGHT GROUPS                              *fugitive-treesitter-highlights*
@@ -93,7 +115,8 @@ Some colorschemes (including the Neovim default) may give one of the linked
 highlight groups no background at all. Since the treesitter highlights will be
 used for the foreground, a background is important for understanding the diff.
 In this case, this plugin will derive a background color from the foreground
-hue of |hl-Added| or |hl-Removed| instead.
+hue of |hl-Added| or |hl-Removed| instead. See
+|fugitive-treesitter-derived_background| to tune that color.
 
 ==============================================================================
 HEALTHCHECK                                       *fugitive-treesitter-health*
@@ -110,6 +133,9 @@ LUA MODULE                                           *fugitive-treesitter-lua*
 fugitive-treesitter.setup({opts})                *fugitive-treesitter.setup()*
     Sets up the plugin. Calling this function is optional: the plugin
     highlights fugitive diffs with no configuration.
+
+    Re-highlights any already-highlighted buffers, so the new options take
+    effect immediately.
 
     Parameters: ~
       • {opts}  (`table?`) The options. See |fugitive-treesitter-config|.

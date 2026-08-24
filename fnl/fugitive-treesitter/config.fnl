@@ -1,6 +1,9 @@
 ;;; Plugin options.
 
-(local defaults {:max_lines 10000})
+(local defaults
+       {:max_lines 10000
+        :derived_background {:saturation 0.35
+                             :lightness {:dark 0.18 :light 0.85}}})
 
 (var options (vim.deepcopy defaults))
 
