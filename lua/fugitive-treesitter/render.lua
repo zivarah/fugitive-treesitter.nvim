@@ -19,7 +19,7 @@ local function region_lines(buf_lines, region)
       local _3fline = buf_lines[(row + 1)]
       local _3fprefix = (_3fline and char_at(_3fline, 1))
       if (_3fprefix and scan["body-prefix?"](_3fprefix)) then
-        val_28_ = {row = row, prefix = _3fprefix, text = string.sub(_3fline, 2)}
+        val_28_ = {row = row, kind = scan["line-kind"](_3fprefix), text = string.sub(_3fline, 2)}
       else
         val_28_ = nil
       end
@@ -32,16 +32,16 @@ local function region_lines(buf_lines, region)
   end
   return tbl_26_
 end
-local function side_lines(lines, prefix, paint_context_3f)
+local function side_lines(lines, kind, paint_context_3f)
   local tbl_26_ = {}
   local i_27_ = 0
   for _, line in ipairs(lines) do
     local val_28_
     do
-      local case_4_ = line.prefix
-      if (case_4_ == prefix) then
+      local case_4_ = line.kind
+      if (case_4_ == kind) then
         val_28_ = {row = line.row, text = line.text, ["paint?"] = true}
-      elseif (case_4_ == " ") then
+      elseif (case_4_ == "context") then
         val_28_ = {row = line.row, text = line.text, ["paint?"] = paint_context_3f}
       else
         val_28_ = nil
@@ -55,10 +55,10 @@ local function side_lines(lines, prefix, paint_context_3f)
   end
   return tbl_26_
 end
-local function prefix__3ehl_group(prefix)
-  if (prefix == "+") then
+local function kind__3ehl_group(kind)
+  if (kind == "add") then
     return highlight["add-group"]
-  elseif (prefix == "-") then
+  elseif (kind == "delete") then
     return highlight["delete-group"]
   else
     return nil
@@ -67,8 +67,8 @@ end
 local function apply_line_backgrounds(buf, lines)
   for _, _8_ in ipairs(lines) do
     local row = _8_.row
-    local prefix = _8_.prefix
-    local case_9_ = prefix__3ehl_group(prefix)
+    local kind = _8_.kind
+    local case_9_ = kind__3ehl_group(kind)
     if (nil ~= case_9_) then
       local hl_group = case_9_
       set_extmark(buf, row, 0, {end_row = (row + 1), end_col = 0, hl_group = hl_group, hl_eol = true, priority = priority_line})
@@ -180,8 +180,8 @@ local function apply_region(buf, buf_lines, lang_cache, region)
   local lines = region_lines(buf_lines, region)
   if (0 < #lines) then
     apply_line_backgrounds(buf, lines)
-    apply_side(buf, lang_cache, region["old-path"], side_lines(lines, "-", false))
-    return apply_side(buf, lang_cache, region["new-path"], side_lines(lines, "+", true))
+    apply_side(buf, lang_cache, region["old-path"], side_lines(lines, "delete", false))
+    return apply_side(buf, lang_cache, region["new-path"], side_lines(lines, "add", true))
   else
     return nil
   end

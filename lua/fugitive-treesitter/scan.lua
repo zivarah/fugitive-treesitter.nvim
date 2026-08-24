@@ -4,6 +4,15 @@ local char_at = _local_1_["char-at"]
 local function body_prefix_3f(sigil)
   return (("+" == sigil) or ("-" == sigil) or (" " == sigil) or ("" == sigil))
 end
+local function line_kind(prefix)
+  if ("+" == prefix) then
+    return "add"
+  elseif ("-" == prefix) then
+    return "delete"
+  else
+    return "context"
+  end
+end
 local function body_line_3f(line)
   local sigil = char_at(line, 1)
   return (body_prefix_3f(sigil) or ("\\" == sigil))
@@ -51,13 +60,13 @@ local function git_file_state(line, state)
   end
 end
 local function status_file_state(line, state)
-  local case_5_ = line:match("^[A-Z?] (.+)$")
-  if (nil ~= case_5_) then
-    local entry = case_5_
+  local case_6_ = line:match("^[A-Z?] (.+)$")
+  if (nil ~= case_6_) then
+    local entry = case_6_
     local _3fold_path, _3fnew_path = entry:match("^(.-) %-> (.+)$")
     return {["old-path"] = (_3fold_path or entry), ["new-path"] = (_3fnew_path or entry)}
   else
-    local _ = case_5_
+    local _ = case_6_
     return state
   end
 end
@@ -82,13 +91,13 @@ local function scan(lines, track)
   return regions
 end
 local function regions(lines, filetype)
-  local function _9_()
+  local function _10_()
     if ("fugitive" == filetype) then
       return status_file_state
     else
       return git_file_state
     end
   end
-  return scan(lines, _9_())
+  return scan(lines, _10_())
 end
-return {["body-prefix?"] = body_prefix_3f, regions = regions}
+return {["body-prefix?"] = body_prefix_3f, ["line-kind"] = line_kind, regions = regions}

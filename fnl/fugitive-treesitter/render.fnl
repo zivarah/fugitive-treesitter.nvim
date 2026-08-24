@@ -41,16 +41,16 @@
     `buf-lines`  All the lines of the buffer, 1-indexed.
     `region`     The region. See `scan.regions`.
 
-  Returns a sequential table of `{:row :prefix :text}`. `row` is the 0-based
-  buffer row, `prefix` is the diff marker, and `text` is the line without its
-  marker. A line that is not part of a hunk body is left out."
+  Returns a sequential table of `{:row :kind :text}`. `row` is the 0-based
+  buffer row, `kind` is the line kind (see `scan.line-kind`), and `text` is the
+  line without its marker. A line that is not part of a hunk body is left out."
   (fcollect [row region.first (- region.last 1)]
     (let [?line (. buf-lines (+ row 1))
           ?prefix (and ?line (char-at ?line 1))]
       (if (and ?prefix (scan.body-prefix? ?prefix))
-          {: row :prefix ?prefix :text (string.sub ?line 2)}))))
+          {: row :kind (scan.line-kind ?prefix) :text (string.sub ?line 2)}))))
 
-(fn side-lines [lines prefix paint-context?]
+(fn side-lines [lines kind paint-context?]
   "Reconstruct one side of a hunk body.
 
   A side holds its own changed lines together with every context line, so that
@@ -59,27 +59,28 @@
 
   Parameters:
     `lines`           The hunk body lines. See `region-lines`.
-    `prefix`          The diff marker of the changed lines of the side.
+    `kind`            The kind of the changed lines of the side, `:add` or
+                      `:delete`. See `scan.line-kind`.
     `paint-context?`  Whether this side colors its context lines.
 
   Returns a sequential table of `{:row :text :paint?}`, in buffer order. A line
   with a false `paint?` is present only to give the parser its surrounding
   code."
   (icollect [_ line (ipairs lines)]
-    (match line.prefix
-      prefix {:row line.row :text line.text :paint? true}
-      " " {:row line.row :text line.text :paint? paint-context?})))
+    (match line.kind
+      kind {:row line.row :text line.text :paint? true}
+      :context {:row line.row :text line.text :paint? paint-context?})))
 
-(fn prefix->hl-group [prefix]
+(fn kind->hl-group [kind]
   "Get the highlight group that colors a whole diff line.
 
   Parameters:
-    `prefix`  The diff marker.
+    `kind`  The line kind. See `scan.line-kind`.
 
   Returns the name of the group, or nil for a context line."
-  (case prefix
-    "+" highlight.add-group
-    "-" highlight.delete-group))
+  (case kind
+    :add highlight.add-group
+    :delete highlight.delete-group))
 
 (fn apply-line-backgrounds [buf lines]
   "Color the whole of each added and each removed line.
@@ -90,8 +91,8 @@
   Parameters:
     `buf`    The buffer number.
     `lines`  The hunk body lines. See `region-lines`."
-  (each [_ {: row : prefix} (ipairs lines)]
-    (case (prefix->hl-group prefix)
+  (each [_ {: row : kind} (ipairs lines)]
+    (case (kind->hl-group kind)
       hl-group (set-extmark buf row 0
                             {:end_row (+ row 1)
                              :end_col 0
@@ -206,8 +207,9 @@
     (when (< 0 (length lines))
       (apply-line-backgrounds buf lines)
       ;; The new side colors the context lines, because both sides hold them.
-      (apply-side buf lang-cache region.old-path (side-lines lines "-" false))
-      (apply-side buf lang-cache region.new-path (side-lines lines "+" true)))))
+      (apply-side buf lang-cache region.old-path
+                  (side-lines lines :delete false))
+      (apply-side buf lang-cache region.new-path (side-lines lines :add true)))))
 
 (fn apply-regions [buf buf-lines regions]
   "Apply the diff highlights of every region of a buffer.

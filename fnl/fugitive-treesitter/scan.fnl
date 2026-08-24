@@ -21,6 +21,18 @@
   line."
   (or (= "+" sigil) (= "-" sigil) (= " " sigil) (= "" sigil)))
 
+(fn line-kind [prefix]
+  "Classify a hunk body line by its diff marker.
+
+  Parameters:
+    `prefix`  The diff marker of the line. See `body-prefix?`.
+
+  Returns `:add` for an added line, `:delete` for a removed line, or `:context`
+  for a line that both sides of the change share."
+  (if (= "+" prefix) :add
+      (= "-" prefix) :delete
+      :context))
+
 (fn body-line? [line]
   "Test whether a diff line belongs to the body of a hunk.
 
@@ -173,4 +185,4 @@
   file."
   (scan lines (if (= :fugitive filetype) status-file-state git-file-state)))
 
-{: body-prefix? : regions}
+{: body-prefix? : line-kind : regions}
