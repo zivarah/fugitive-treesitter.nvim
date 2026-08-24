@@ -73,13 +73,25 @@ local function attach(buf)
     return nil
   end
 end
-local function enable()
-  local group = vim.api.nvim_create_augroup(augroup, {clear = true})
-  local function _11_(ev)
-    return attach(ev.buf)
+local function attach_loaded()
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_loaded(buf) then
+      attach(buf)
+    else
+    end
   end
-  vim.api.nvim_create_autocmd("FileType", {group = group, pattern = vim.tbl_keys(attachers), callback = _11_})
-  return vim.api.nvim_create_autocmd("ColorScheme", {group = group, callback = highlight.invalidate})
+  return nil
+end
+local function enable()
+  do
+    local group = vim.api.nvim_create_augroup(augroup, {clear = true})
+    local function _12_(ev)
+      return attach(ev.buf)
+    end
+    vim.api.nvim_create_autocmd("FileType", {group = group, pattern = vim.tbl_keys(attachers), callback = _12_})
+    vim.api.nvim_create_autocmd("ColorScheme", {group = group, callback = highlight.invalidate})
+  end
+  return attach_loaded()
 end
 local function disable()
   pcall(vim.api.nvim_del_augroup_by_name, augroup)

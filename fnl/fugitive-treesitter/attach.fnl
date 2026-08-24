@@ -102,15 +102,25 @@
   (case (. attachers (vim.api.nvim_get_option_value :filetype {: buf}))
     attacher (attacher buf)))
 
+(fn attach-loaded []
+  "Start highlighting every buffer that is loaded now.
+
+  Reattaching to a buffer that already has a listener is safe, because the new
+  listener retires the old one."
+  (each [_ buf (ipairs (vim.api.nvim_list_bufs))]
+    (when (vim.api.nvim_buf_is_loaded buf)
+      (attach buf))))
+
 (fn enable []
-  "Start highlighting fugitive diffs."
+  "Start highlighting fugitive diffs, including in already-loaded buffers."
   (let [group (vim.api.nvim_create_augroup augroup {:clear true})]
     (vim.api.nvim_create_autocmd :FileType
                                  {: group
                                   :pattern (vim.tbl_keys attachers)
                                   :callback (fn [ev] (attach ev.buf))})
     (vim.api.nvim_create_autocmd :ColorScheme
-                                 {: group :callback highlight.invalidate})))
+                                 {: group :callback highlight.invalidate}))
+  (attach-loaded))
 
 (fn disable []
   "Stop highlighting fugitive diffs, and remove the highlights that are already
