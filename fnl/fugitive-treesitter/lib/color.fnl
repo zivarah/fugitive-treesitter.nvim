@@ -172,6 +172,39 @@
         b* (to-byte (+ b darkest))]
     (join-channels r* g* b*)))
 
+(fn blend-channel [from toward amount]
+  "Move a single channel part of the way to another
+
+  Parameters:
+    `from`    The 8-bit channel integer to start from.
+    `toward`  The 8-bit channel integer to move to.
+    `amount`  How far to move, 0 to 1. A value of 0 gives `from`, and a value
+              of 1 gives `toward`.
+
+  Returns the new 24-bit RGB integer."
+  (-> (- toward from)
+      (* amount)
+      (+ from)
+      (+ 0.5)
+      (math.floor)
+      (math.max 0)
+      (math.min 255)))
+
+(fn blend [from-rgb toward-rgb amount]
+  "Move a color part of the way to another color.
+
+  Parameters:
+    `from-rgb`    The 24-bit RGB integer to start from.
+    `toward-rgb`  The 24-bit RGB integer to move to.
+    `amount`      How far to move, 0 to 1. A value of 0 gives `from-rgb`, and a
+                  value of 1 gives `toward-rgb`.
+
+  Returns the new 24-bit RGB integer."
+  (let [(r1 g1 b1) (separate-channels from-rgb)
+        (r2 g2 b2) (separate-channels toward-rgb)]
+    (join-channels (blend-channel r1 r2 amount) (blend-channel g1 g2 amount)
+                   (blend-channel b1 b2 amount))))
+
 (fn recolor [rgb saturation lightness]
   "Rebuild a color with the same hue but a new saturation and lightness.
 
@@ -185,4 +218,4 @@
         hsl* {:h hsl.h :s saturation :l lightness}]
     (hsl->rgb hsl*)))
 
-{: separate-channels : join-channels : rgb->hsl : hsl->rgb : recolor}
+{: separate-channels : join-channels : rgb->hsl : hsl->rgb : blend : recolor}

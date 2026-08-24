@@ -50,6 +50,26 @@
                     (assert.near 0.3097 hsl.s tolerance)
                     (assert.near 0.2216 hsl.l tolerance))))))
 
+(describe :blend
+          (fn []
+            (it "keeps the color it starts from at 0"
+                (fn []
+                  (assert.equals 0x4a272f (color.blend 0x4a272f 0x000000 0))))
+            (it "reaches the color it moves to at 1"
+                (fn []
+                  (assert.equals 0x000000 (color.blend 0x4a272f 0x000000 1))))
+            (it "meets in the middle at 0.5"
+                (fn []
+                  (assert.equals 0x808080 (color.blend 0x000000 0xffffff 0.5))))
+            (it "moves each channel on its own"
+                (fn []
+                  ;; Halfway from red to blue keeps no green, and splits the
+                  ;; other two channels.
+                  (assert.equals 0x800080 (color.blend 0xff0000 0x0000ff 0.5))))
+            (it "changes nothing when the two colors match"
+                (fn []
+                  (assert.equals 0x4a272f (color.blend 0x4a272f 0x4a272f 0.5))))))
+
 (describe :hsl->rgb
           (fn []
             (it "round-trips every hue sector"
