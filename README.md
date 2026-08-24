@@ -1,7 +1,16 @@
 # fugitive-treesitter.nvim
 
 Treesitter syntax highlighting for the code inside [vim-fugitive][fugitive]
-diffs.
+diffs. Supports the fugitive status buffer as well as fugitive-driven diffs and
+commit buffers.
+
+Example (status buffer):
+
+![status buffer with treesitter highlighting](assets/status.png)
+
+Example (commit view):
+
+![commit buffer with treesitter highlighting](assets/commit.png)
 
 ## Requirements
 

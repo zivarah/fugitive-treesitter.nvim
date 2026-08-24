@@ -21,6 +21,10 @@ INTRODUCTION                                             *fugitive-treesitter*
 
 This plugin highlights the code inside |fugitive| diffs with treesitter.
 
+It handles the |:Git| status buffer as well as any buffer with the `git`
+filetype. That includes the output of `:Git diff`, `:Git show` and `:Git log`,
+as well as commit objects.
+
 ==============================================================================
 REQUIREMENTS                                *fugitive-treesitter-requirements*
 
@@ -92,6 +96,22 @@ fugitive-treesitter.setup({opts})                *fugitive-treesitter.setup()*
 
     Parameters: ~
       • {opts}  (`table?`) The options. See |fugitive-treesitter-config|.
+
+fugitive-treesitter.refresh({bufnr})           *fugitive-treesitter.refresh()*
+    Applies the diff highlights of a buffer again. The plugin normally does
+    this by itself. If you find you need to call this yourself under normal
+    use, please file a bug report.
+
+    Parameters: ~
+      • {bufnr}  (`integer?`) The buffer. Defaults to the current buffer.
+
+fugitive-treesitter.enable()                    *fugitive-treesitter.enable()*
+    Starts highlighting fugitive diffs. The plugin does this on startup, so
+    this is only needed after |fugitive-treesitter.disable()|.
+
+fugitive-treesitter.disable()                  *fugitive-treesitter.disable()*
+    Stops highlighting fugitive diffs, and removes the highlights that are
+    already on screen.
 
 ==============================================================================
 CREDITS                                          *fugitive-treesitter-credits*

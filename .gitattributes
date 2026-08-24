@@ -1,2 +1,3 @@
 # All lua is compiled from fnl
 *.lua linguist-generated=true
+**/*.png filter=lfs diff=lfs merge=lfs -text
