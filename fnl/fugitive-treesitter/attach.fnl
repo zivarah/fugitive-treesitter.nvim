@@ -139,7 +139,14 @@
     ;; A colorscheme runs `:highlight clear`, which removes the plugin's groups
     ;; but leaves its extmarks in place, pointing at groups that no longer
     ;; exist.
-    (vim.api.nvim_create_autocmd :ColorScheme {: group :callback redraw}))
+    (vim.api.nvim_create_autocmd :ColorScheme {: group :callback redraw})
+    ;; `background` decides the lightness of a derived color, and setting it
+    ;; does not report `ColorScheme`, though a colorscheme that reacts to it
+    ;; runs `:highlight clear` all the same.
+    (vim.api.nvim_create_autocmd :OptionSet
+                                 {: group
+                                  :pattern :background
+                                  :callback redraw}))
   (attach-loaded))
 
 (fn disable []

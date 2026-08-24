@@ -116,6 +116,7 @@ local function enable()
     end
     vim.api.nvim_create_autocmd("FileType", {group = group, pattern = vim.tbl_keys(attachers), callback = _14_})
     vim.api.nvim_create_autocmd("ColorScheme", {group = group, callback = redraw})
+    vim.api.nvim_create_autocmd("OptionSet", {group = group, pattern = "background", callback = redraw})
   end
   return attach_loaded()
 end
