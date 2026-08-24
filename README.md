@@ -15,7 +15,6 @@ Example (commit view):
 ## Requirements
 
 - Neovim 0.12 or newer
-- [vim-fugitive][fugitive]
 - An installed treesitter parser for each language you want highlighted
 
 [vim-fugitive][fugitive] is not actually a runtime dependency, but this plugin
@@ -47,12 +46,6 @@ See [`:help fugitive-treesitter`][vimdoc] for:
 - highlight groups to customize as needed
 - Lua APIs
 - etc.
-
-## Troubleshooting
-
-```vim
-:checkhealth fugitive-treesitter
-```
 
 ## Troubleshooting
 
