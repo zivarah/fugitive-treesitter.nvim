@@ -63,16 +63,22 @@ local function attach_status(buf)
   vim.api.nvim_buf_attach(buf, false, {on_lines = on_lines})
   return rehighlight()
 end
+local attachers = {git = attach_diff, fugitive = attach_status}
+local function attach(buf)
+  local case_9_ = attachers[vim.api.nvim_get_option_value("filetype", {buf = buf})]
+  if (nil ~= case_9_) then
+    local attacher = case_9_
+    return attacher(buf)
+  else
+    return nil
+  end
+end
 local function enable()
   local group = vim.api.nvim_create_augroup(augroup, {clear = true})
-  local function _9_(ev)
-    return attach_diff(ev.buf)
+  local function _11_(ev)
+    return attach(ev.buf)
   end
-  vim.api.nvim_create_autocmd("FileType", {group = group, pattern = "git", callback = _9_})
-  local function _10_(ev)
-    return attach_status(ev.buf)
-  end
-  vim.api.nvim_create_autocmd("FileType", {group = group, pattern = "fugitive", callback = _10_})
+  vim.api.nvim_create_autocmd("FileType", {group = group, pattern = vim.tbl_keys(attachers), callback = _11_})
   return vim.api.nvim_create_autocmd("ColorScheme", {group = group, callback = highlight.invalidate})
 end
 local function disable()

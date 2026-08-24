@@ -88,17 +88,27 @@
     (vim.api.nvim_buf_attach buf false {:on_lines on-lines})
     (rehighlight)))
 
+;; The filetypes that the plugin highlights, and the function that starts
+;; highlighting a buffer of each one.
+(local attachers {:git attach-diff :fugitive attach-status})
+
+(fn attach [buf]
+  "Start highlighting a buffer, in the way that its filetype needs.
+
+  Does nothing for a buffer of any other filetype.
+
+  Parameters:
+    `buf`  The buffer number."
+  (case (. attachers (vim.api.nvim_get_option_value :filetype {: buf}))
+    attacher (attacher buf)))
+
 (fn enable []
   "Start highlighting fugitive diffs."
   (let [group (vim.api.nvim_create_augroup augroup {:clear true})]
     (vim.api.nvim_create_autocmd :FileType
                                  {: group
-                                  :pattern :git
-                                  :callback (fn [ev] (attach-diff ev.buf))})
-    (vim.api.nvim_create_autocmd :FileType
-                                 {: group
-                                  :pattern :fugitive
-                                  :callback (fn [ev] (attach-status ev.buf))})
+                                  :pattern (vim.tbl_keys attachers)
+                                  :callback (fn [ev] (attach ev.buf))})
     (vim.api.nvim_create_autocmd :ColorScheme
                                  {: group :callback highlight.invalidate})))
 
