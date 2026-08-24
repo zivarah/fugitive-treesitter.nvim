@@ -157,4 +157,4 @@
     (when (vim.api.nvim_buf_is_loaded buf)
       (render.clear buf))))
 
-{: refresh : enable : disable}
+{: refresh : redraw : enable : disable}

@@ -9,9 +9,12 @@
   Calling this function is optional. The plugin highlights fugitive diffs with
   no configuration at all, so call it only to change an option.
 
+  Any buffer that is highlighted already is re-highlighted.
+
   Parameters:
     `?opts`  The user options. See |fugitive-treesitter-config|."
   (config.setup ?opts)
+  (attach.redraw)
   nil)
 
 (fn refresh [?buf]

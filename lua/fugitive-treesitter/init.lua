@@ -3,6 +3,7 @@ local attach = require("fugitive-treesitter.attach")
 local config = require("fugitive-treesitter.config")
 local function setup(_3fopts)
   config.setup(_3fopts)
+  attach.redraw()
   return nil
 end
 local function refresh(_3fbuf)

@@ -130,4 +130,4 @@ local function disable()
   end
   return nil
 end
-return {refresh = refresh, enable = enable, disable = disable}
+return {refresh = refresh, redraw = redraw, enable = enable, disable = disable}
