@@ -81,9 +81,17 @@ local function hsl__3ergb(_4_)
   local b_2a = to_byte((b + darkest))
   return join_channels(r_2a, g_2a, b_2a)
 end
+local function blend_channel(from, toward, amount)
+  return math.min(math.max(math.floor(((((toward - from) * amount) + from) + 0.5)), 0), 255)
+end
+local function blend(from_rgb, toward_rgb, amount)
+  local r1, g1, b1 = separate_channels(from_rgb)
+  local r2, g2, b2 = separate_channels(toward_rgb)
+  return join_channels(blend_channel(r1, r2, amount), blend_channel(g1, g2, amount), blend_channel(b1, b2, amount))
+end
 local function recolor(rgb, saturation, lightness)
   local hsl = rgb__3ehsl(rgb)
   local hsl_2a = {h = hsl.h, s = saturation, l = lightness}
   return hsl__3ergb(hsl_2a)
 end
-return {["separate-channels"] = separate_channels, ["join-channels"] = join_channels, ["rgb->hsl"] = rgb__3ehsl, ["hsl->rgb"] = hsl__3ergb, recolor = recolor}
+return {["separate-channels"] = separate_channels, ["join-channels"] = join_channels, ["rgb->hsl"] = rgb__3ehsl, ["hsl->rgb"] = hsl__3ergb, blend = blend, recolor = recolor}

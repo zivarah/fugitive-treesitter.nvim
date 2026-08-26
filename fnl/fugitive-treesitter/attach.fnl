@@ -5,6 +5,7 @@
 ;;; is expanded or collapsed, so it needs a listener.
 
 (local render (require :fugitive-treesitter.render))
+(local fold (require :fugitive-treesitter.fold))
 (local highlight (require :fugitive-treesitter.highlight))
 
 (local augroup :fugitive-treesitter)
@@ -57,6 +58,7 @@
   Parameters:
     `?buf`  The buffer number. Defaults to the current buffer."
   (let [buf (or ?buf (vim.api.nvim_get_current_buf))]
+    (fold.update buf)
     (render.buffer buf)))
 
 (fn attach-diff [buf]
@@ -166,6 +168,7 @@
   (retire-listeners)
   (each [_ buf (ipairs (vim.api.nvim_list_bufs))]
     (when (vim.api.nvim_buf_is_loaded buf)
+      (fold.clear buf)
       (render.clear buf))))
 
 {: refresh : redraw : enable : disable}

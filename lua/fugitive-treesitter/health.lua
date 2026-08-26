@@ -51,14 +51,23 @@ local function describe_group(name)
     return string.format("%s links to %s", name, raw.link)
   elseif resolved.bg then
     return string.format("%s background #%06x", name, resolved.bg)
+  elseif resolved.fg then
+    local function _5_()
+      if resolved.reverse then
+        return ", reversed"
+      else
+        return ""
+      end
+    end
+    return string.format("%s foreground #%06x%s", name, resolved.fg, _5_())
   else
-    return string.format("%s has no background", name)
+    return string.format("%s has no color", name)
   end
 end
 local function report_highlights()
   local highlight = require("fugitive-treesitter.highlight")
   highlight.ensure()
-  for _, name in ipairs({highlight["add-group"], highlight["delete-group"]}) do
+  for _, name in ipairs({highlight["add-group"], highlight["delete-group"], highlight["add-dim-group"], highlight["delete-dim-group"], highlight["commit-group"], highlight["commit-add-group"], highlight["commit-delete-group"], highlight["hunk-group"], highlight["patch-hunk-group"], highlight["file-group"]}) do
     vim.health.info(describe_group(name))
   end
   return nil

@@ -1,5 +1,6 @@
 -- [nfnl] fnl/fugitive-treesitter/attach.fnl
 local render = require("fugitive-treesitter.render")
+local fold = require("fugitive-treesitter.fold")
 local highlight = require("fugitive-treesitter.highlight")
 local augroup = "fugitive-treesitter"
 local generation_key = "fugitive_treesitter_generation"
@@ -29,6 +30,7 @@ local function de_spam(f)
 end
 local function refresh(_3fbuf)
   local buf = (_3fbuf or vim.api.nvim_get_current_buf())
+  fold.update(buf)
   return render.buffer(buf)
 end
 local function attach_diff(buf)
@@ -134,6 +136,7 @@ local function disable()
   retire_listeners()
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
     if vim.api.nvim_buf_is_loaded(buf) then
+      fold.clear(buf)
       render.clear(buf)
     else
     end

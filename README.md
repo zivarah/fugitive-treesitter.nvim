@@ -2,7 +2,8 @@
 
 Treesitter syntax highlighting for the code inside [vim-fugitive][fugitive]
 diffs. Supports the fugitive status buffer as well as fugitive-driven diffs and
-commit buffers, including combined diffs of a conflicted file.
+commit buffers, including combined diffs of a conflicted file and
+[`git range-diff`][range-diff] output.
 
 Example (status buffer):
 
@@ -11,6 +12,10 @@ Example (status buffer):
 Example (commit view):
 
 ![commit buffer with treesitter highlighting](assets/commit.png)
+
+Example (range-diff):
+
+![range-diff with treesitter highlighting](assets/range-diff.png)
 
 ## Requirements
 
@@ -66,3 +71,4 @@ MIT. See [LICENSE](LICENSE).
 [vimdoc]: ./doc/fugitive-treesitter.txt
 [fugitive]: https://github.com/tpope/vim-fugitive
 [neogit]: https://github.com/NeogitOrg/neogit
+[range-diff]: https://git-scm.com/docs/git-range-diff
