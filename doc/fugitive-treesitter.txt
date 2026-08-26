@@ -25,12 +25,13 @@ It handles the |:Git| status buffer as well as any buffer with the `git`
 filetype. That includes the output of `:Git diff`, `:Git show` and `:Git log`,
 as well as commit objects.
 
-Two shapes of diff are read:
+Three shapes of diff are read:
 
 - An ordinary diff, with one marker column per line.
 - A combined diff, with one marker column per parent. Fugitive writes one of
   these for a conflicted file in the status buffer, and `git show` writes one
   for a merge commit. See |diff-format|.
+- `:Git range-diff` output, which compares two versions of a patch series.
 
 ==============================================================================
 REQUIREMENTS                                *fugitive-treesitter-requirements*
@@ -69,6 +70,11 @@ Defaults: >lua
             saturation = 0.35,
             lightness = { dark = 0.18, light = 0.85 },
         },
+        range_diff = {
+            enabled = true,
+            earlier_series_dim_factor = 0.4,
+            commit_pair_mute_factor = 0.4,
+        },
     })
 <
                                                *fugitive-treesitter-max_lines*
@@ -94,12 +100,34 @@ derived_background ~
     against a dark editor background and lower `lightness.light` to make it
     stand out more against a light editor background.
 
+                                              *fugitive-treesitter-range_diff*
+range_diff ~
+    How the plugin treats `git range-diff` output. See
+    |fugitive-treesitter-range-diff|.
+
+    `enabled` controls all handling of `range-diff` buffers. Set it to false
+    to disable treesitter-based highlighting and non-treesitter decoration.
+
+    The two factors say how far a part that recedes moves toward the
+    background of the editor. A factor of 0 leaves the part alone, and a
+    factor of 1 hides it.
+
+    `earlier_series_dim_factor` dims the line background of a line that only
+    appears in the earlier series (`--` or `-+`). See
+    |hl-FugitiveTreesitterAddDim|.
+
+    `commit_pair_mute_factor` mutes the text of a commit pair entry. that is
+    unchanged. See |hl-FugitiveTreesitterCommit|.
+
+
 ==============================================================================
 HIGHLIGHT GROUPS                              *fugitive-treesitter-highlights*
 
 This plugin links its own groups to the standard diff groups. This allows you
-to tune the background color of diffs where treesitter highlighting is
-applied independently of other diff workflows if needed.
+to tune the colors where treesitter highlighting is applied independently of
+other diff workflows if needed.
+
+Line backgrounds ~
 
                                                     *hl-FugitiveTreesitterAdd*
 FugitiveTreesitterAdd
@@ -117,6 +145,69 @@ used for the foreground, a background is important for understanding the diff.
 In this case, this plugin will derive a background color from the foreground
 hue of |hl-Added| or |hl-Removed| instead. See
 |fugitive-treesitter-derived_background| to tune that color.
+
+                                                 *hl-FugitiveTreesitterAddDim*
+FugitiveTreesitterAddDim
+    The background of an added line that only the earlier series of a
+    range-diff holds (`-+`). See |fugitive-treesitter-range-diff|.
+
+                                              *hl-FugitiveTreesitterDeleteDim*
+FugitiveTreesitterDeleteDim
+    The background of a removed line that only the earlier series of a
+    range-diff holds (`--`). See |fugitive-treesitter-range-diff|.
+
+Each dim group takes the background of its plain group and moves it toward the
+background of the editor. How far it moves is controlled by
+|fugitive-treesitter-range_diff|'s `earlier_series_dim_factor`.
+
+Text colors ~
+
+A range-diff carries a good deal of text that is not code: the entry that
+pairs two commits above each patch, the hunk headers, and the heading that
+names each file. Treesitter has nothing to say about any of that, so these
+groups color the text itself rather than the background behind it. See
+|fugitive-treesitter-range-diff|.
+
+Each group links to the first of several standard groups that the colorscheme
+gives a foreground.
+
+                                              *hl-FugitiveTreesitterCommitAdd*
+FugitiveTreesitterCommitAdd
+    The side of a commit pair entry that names a commit of the later series,
+    and the whole entry for a commit that only the later series has. Prefers
+    |hl-Added|, then `diffAdded`.
+
+                                           *hl-FugitiveTreesitterCommitDelete*
+FugitiveTreesitterCommitDelete
+    The side that names a commit of the earlier series, and the whole entry
+    for a commit that only the earlier series has. Prefers |hl-Removed|, then
+    `diffRemoved`.
+
+                                                 *hl-FugitiveTreesitterCommit*
+FugitiveTreesitterCommit
+    The operator between the two sides of a commit pair entry (`!` or `=`),
+    and the whole commit pair line when the two patches match. Moves the
+    foreground of |hl-Normal| toward its background, by
+    |fugitive-treesitter-range_diff|'s `commit_pair_mute_factor`, and links to
+    |hl-Comment| when `Normal` sets no foreground.
+
+                                              *hl-FugitiveTreesitterPatchHunk*
+FugitiveTreesitterPatchHunk
+    The `@@` of a hunk header of one of the patches. Prefers `diffLine`, then
+    `diffSubname`, then |hl-Title|.
+
+                                                   *hl-FugitiveTreesitterHunk*
+FugitiveTreesitterHunk
+    The `@@` of a hunk header of the outer diff, which opens a run of lines
+    that the two patches differ over. Same colors as
+    |hl-FugitiveTreesitterPatchHunk|, but with the foreground and background
+    swapped to distinguish the two.
+
+                                                   *hl-FugitiveTreesitterFile*
+FugitiveTreesitterFile
+    The name that a heading or a hunk header gives for the file, or for the
+    section that stands in for one (e.g. "Commit message"). Prefers
+    `diffFile`, then |hl-Directory|.
 
 ==============================================================================
 HEALTHCHECK                                       *fugitive-treesitter-health*
