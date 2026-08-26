@@ -135,16 +135,20 @@
                 :text line.text
                 :paint? (and paint-context? line.owned?)})))
 
-(fn kind->hl-group [kind]
+(fn line-hl-group [kind series]
   "Get the highlight group that colors a whole diff line.
 
   Parameters:
-    `kind`  The line kind. See `scan.line-kind`.
+    `kind`    The line kind. See `scan.line-kind`.
+    `series`  The series that holds the line. See `region-lines`.
 
-  Returns the name of the group, or nil for a context line."
-  (case kind
-    :add highlight.add-group
-    :delete highlight.delete-group))
+  Returns the name of the group, or nil for a context line. A line that only the
+  earlier series of a range-diff holds gets a dim group, so that the series
+  which matters now stands out from the one it replaced."
+  (let [dim? (= :delete series)]
+    (case kind
+      :add (if dim? highlight.add-dim-group highlight.add-group)
+      :delete (if dim? highlight.delete-dim-group highlight.delete-group))))
 
 (fn apply-line-backgrounds [buf region lines]
   "Color the whole of each added and each removed line.
@@ -154,8 +158,8 @@
     `region`  The region that the lines belong to. See `scan.regions`.
     `lines`   The hunk body lines. See `region-lines`."
   (let [cols (region-columns region)]
-    (each [_ {: row : kind : col : text} (ipairs lines)]
-      (case (kind->hl-group kind)
+    (each [_ {: row : kind : series : col : text} (ipairs lines)]
+      (case (line-hl-group kind series)
         hl-group (set-extmark buf row cols.marker
                               {:end_col (+ col (length text))
                                :hl_group hl-group

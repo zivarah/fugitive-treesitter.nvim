@@ -53,20 +53,32 @@
   Parameters:
     `name`  The name of the group.
 
-  Returns the description."
+  Returns the description. A group that links to another one is described by
+  that link. Any other group is described by the color it sets: a background for
+  a group that colors a diff line, and a foreground for one that colors text
+  which carries no code."
   (let [raw (vim.api.nvim_get_hl 0 {: name})
         resolved (vim.api.nvim_get_hl 0 {: name :link false})]
-    (if raw.link
-        (string.format "%s links to %s" name raw.link)
-        resolved.bg
-        (string.format "%s background #%06x" name resolved.bg)
-        (string.format "%s has no background" name))))
+    (if raw.link (string.format "%s links to %s" name raw.link)
+        resolved.bg (string.format "%s background #%06x" name resolved.bg)
+        resolved.fg (string.format "%s foreground #%06x%s" name resolved.fg
+                                   (if resolved.reverse ", reversed" ""))
+        (string.format "%s has no color" name))))
 
 (fn report-highlights []
   "Report how each of the plugin's highlight groups resolved."
   (let [highlight (require :fugitive-treesitter.highlight)]
     (highlight.ensure)
-    (each [_ name (ipairs [highlight.add-group highlight.delete-group])]
+    (each [_ name (ipairs [highlight.add-group
+                           highlight.delete-group
+                           highlight.add-dim-group
+                           highlight.delete-dim-group
+                           highlight.commit-group
+                           highlight.commit-add-group
+                           highlight.commit-delete-group
+                           highlight.hunk-group
+                           highlight.patch-hunk-group
+                           highlight.file-group])]
       (vim.health.info (describe-group name)))))
 
 (fn check []

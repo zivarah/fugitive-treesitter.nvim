@@ -98,25 +98,35 @@ local function side_lines(lines, kind, paint_context_3f)
   end
   return tbl_26_
 end
-local function kind__3ehl_group(kind)
+local function line_hl_group(kind, series)
+  local dim_3f = ("delete" == series)
   if (kind == "add") then
-    return highlight["add-group"]
+    if dim_3f then
+      return highlight["add-dim-group"]
+    else
+      return highlight["add-group"]
+    end
   elseif (kind == "delete") then
-    return highlight["delete-group"]
+    if dim_3f then
+      return highlight["delete-dim-group"]
+    else
+      return highlight["delete-group"]
+    end
   else
     return nil
   end
 end
 local function apply_line_backgrounds(buf, region, lines)
   local cols = region_columns(region)
-  for _, _12_ in ipairs(lines) do
-    local row = _12_.row
-    local kind = _12_.kind
-    local col = _12_.col
-    local text = _12_.text
-    local case_13_ = kind__3ehl_group(kind)
-    if (nil ~= case_13_) then
-      local hl_group = case_13_
+  for _, _14_ in ipairs(lines) do
+    local row = _14_.row
+    local kind = _14_.kind
+    local series = _14_.series
+    local col = _14_.col
+    local text = _14_.text
+    local case_15_ = line_hl_group(kind, series)
+    if (nil ~= case_15_) then
+      local hl_group = case_15_
       set_extmark(buf, row, cols.marker, {end_col = (col + #text), hl_group = hl_group, priority = priority_line})
     else
     end
@@ -147,9 +157,9 @@ end
 local function apply_capture(buf, lines, hl_group, node)
   local start_row, start_col, end_row, end_col = node:range()
   for row = start_row, end_row do
-    local case_18_ = lines[(row + 1)]
-    if (nil ~= case_18_) then
-      local line = case_18_
+    local case_20_ = lines[(row + 1)]
+    if (nil ~= case_20_) then
+      local line = case_20_
       if line["paint?"] then
         local from
         if (row == start_row) then
@@ -172,9 +182,9 @@ local function apply_capture(buf, lines, hl_group, node)
   return nil
 end
 local function apply_tree_captures(buf, lines, source, tree, ltree)
-  local case_23_ = vim.treesitter.query.get(ltree:lang(), "highlights")
-  if (nil ~= case_23_) then
-    local query = case_23_
+  local case_25_ = vim.treesitter.query.get(ltree:lang(), "highlights")
+  if (nil ~= case_25_) then
+    local query = case_25_
     for id, node in query:iter_captures(tree:root(), source) do
       apply_capture(buf, lines, ("@" .. query.captures[id]), node)
     end
@@ -185,7 +195,7 @@ local function apply_tree_captures(buf, lines, source, tree, ltree)
 end
 local function apply_treesitter(buf, lang, lines)
   local source
-  local _25_
+  local _27_
   do
     local tbl_26_ = {}
     local i_27_ = 0
@@ -197,23 +207,23 @@ local function apply_treesitter(buf, lang, lines)
       else
       end
     end
-    _25_ = tbl_26_
+    _27_ = tbl_26_
   end
-  source = table.concat(_25_, "\n")
+  source = table.concat(_27_, "\n")
   local parser = vim.treesitter.get_string_parser(source, lang)
   local apply_to_tree
-  local function _27_(...)
+  local function _29_(...)
     return apply_tree_captures(buf, lines, source, ...)
   end
-  apply_to_tree = _27_
+  apply_to_tree = _29_
   parser:parse(true)
   return parser:for_each_tree(apply_to_tree)
 end
 local function apply_side(buf, lang_cache, filepath, lines)
   if (0 < #lines) then
-    local case_28_ = cached_lang(lang_cache, filepath)
-    if (nil ~= case_28_) then
-      local lang = case_28_
+    local case_30_ = cached_lang(lang_cache, filepath)
+    if (nil ~= case_30_) then
+      local lang = case_30_
       return pcall(apply_treesitter, buf, lang, lines)
     else
       return nil
