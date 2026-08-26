@@ -330,4 +330,4 @@ local function decorations(lines, filetype)
   end
   return spans
 end
-return {["body-prefix?"] = body_prefix_3f, ["line-kind"] = line_kind, regions = regions, decorations = decorations}
+return {["body-prefix?"] = body_prefix_3f, ["line-kind"] = line_kind, ["range-diff?"] = range_diff_3f, regions = regions, decorations = decorations}

@@ -646,4 +646,4 @@
           (table.insert spans span))))
     spans))
 
-{: body-prefix? : line-kind : regions : decorations}
+{: body-prefix? : line-kind : range-diff? : regions : decorations}

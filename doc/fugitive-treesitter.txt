@@ -72,6 +72,7 @@ Defaults: >lua
         },
         range_diff = {
             enabled = true,
+            define_folds = true,
             earlier_series_dim_factor = 0.4,
             commit_pair_mute_factor = 0.4,
         },
@@ -106,7 +107,14 @@ range_diff ~
     |fugitive-treesitter-range-diff|.
 
     `enabled` controls all handling of `range-diff` buffers. Set it to false
-    to disable treesitter-based highlighting and non-treesitter decoration.
+    to disable treesitter-based highlighting, non-treesitter decoration,
+    and fold definitions.
+
+    `define_folds` controls the plugin's addition of syntax-based fold
+    definitions. This syntax defines one fold for each commit and one nested
+    fold for each outer hunk. It does not change `foldmethod` or any other
+    fold option; set `foldmethod` to `syntax` to use these folds. Set
+    `define_folds` to false to skip defining these folds.
 
     The two factors say how far a part that recedes moves toward the
     background of the editor. A factor of 0 leaves the part alone, and a
