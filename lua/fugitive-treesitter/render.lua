@@ -18,18 +18,51 @@ local function marker_3f(marker)
   end
   return body_3f
 end
+local function region_columns(region)
+  local text = region["text-col"]
+  local marker = (text - region["marker-width"])
+  local series = (marker - region["series-width"])
+  return {series = series, marker = marker, text = text}
+end
 local function region_lines(buf_lines, region)
-  local text_col = region["text-col"]
-  local marker_from = (1 + (text_col - region["marker-width"]))
+  local cols = region_columns(region)
   local tbl_26_ = {}
   local i_27_ = 0
   for row = region.first, (region.last - 1) do
     local val_28_
     do
-      local _3fline = buf_lines[(row + 1)]
-      local _3fmarker = (_3fline and string.sub(_3fline, marker_from, text_col))
-      if (_3fmarker and marker_3f(_3fmarker)) then
-        val_28_ = {row = row, col = text_col, kind = scan["line-kind"](_3fmarker), text = string.sub(_3fline, (text_col + 1))}
+      local case_2_ = buf_lines[(row + 1)]
+      if (nil ~= case_2_) then
+        local line = case_2_
+        local marker = string.sub(line, (cols.marker + 1), cols.text)
+        local series = string.sub(line, (cols.series + 1), cols.marker)
+        local text = string.sub(line, (cols.text + 1))
+        if marker_3f(marker) then
+          val_28_ = {row = row, col = cols.text, series = scan["line-kind"](series), kind = scan["line-kind"](marker), text = text}
+        else
+          val_28_ = nil
+        end
+      else
+        val_28_ = nil
+      end
+    end
+    if (nil ~= val_28_) then
+      i_27_ = (i_27_ + 1)
+      tbl_26_[i_27_] = val_28_
+    else
+    end
+  end
+  return tbl_26_
+end
+local function series_lines(lines, series, context_owner_3f)
+  local tbl_26_ = {}
+  local i_27_ = 0
+  for _, line in ipairs(lines) do
+    local val_28_
+    do
+      local shared_3f = ("context" == line.series)
+      if (shared_3f or (series == line.series)) then
+        val_28_ = {row = line.row, col = line.col, kind = line.kind, text = line.text, ["owned?"] = (not shared_3f or context_owner_3f)}
       else
         val_28_ = nil
       end
@@ -48,11 +81,11 @@ local function side_lines(lines, kind, paint_context_3f)
   for _, line in ipairs(lines) do
     local val_28_
     do
-      local case_4_ = line.kind
-      if (case_4_ == kind) then
-        val_28_ = {row = line.row, col = line.col, text = line.text, ["paint?"] = true}
-      elseif (case_4_ == "context") then
-        val_28_ = {row = line.row, col = line.col, text = line.text, ["paint?"] = paint_context_3f}
+      local case_8_ = line.kind
+      if (case_8_ == kind) then
+        val_28_ = {row = line.row, col = line.col, text = line.text, ["paint?"] = line["owned?"]}
+      elseif (case_8_ == "context") then
+        val_28_ = {row = line.row, col = line.col, text = line.text, ["paint?"] = (paint_context_3f and line["owned?"])}
       else
         val_28_ = nil
       end
@@ -74,16 +107,17 @@ local function kind__3ehl_group(kind)
     return nil
   end
 end
-local function apply_line_backgrounds(buf, lines)
-  for _, _8_ in ipairs(lines) do
-    local row = _8_.row
-    local kind = _8_.kind
-    local col = _8_.col
-    local text = _8_.text
-    local case_9_ = kind__3ehl_group(kind)
-    if (nil ~= case_9_) then
-      local hl_group = case_9_
-      set_extmark(buf, row, 0, {end_col = (col + #text), hl_group = hl_group, priority = priority_line})
+local function apply_line_backgrounds(buf, region, lines)
+  local cols = region_columns(region)
+  for _, _12_ in ipairs(lines) do
+    local row = _12_.row
+    local kind = _12_.kind
+    local col = _12_.col
+    local text = _12_.text
+    local case_13_ = kind__3ehl_group(kind)
+    if (nil ~= case_13_) then
+      local hl_group = case_13_
+      set_extmark(buf, row, cols.marker, {end_col = (col + #text), hl_group = hl_group, priority = priority_line})
     else
     end
   end
@@ -113,9 +147,9 @@ end
 local function apply_capture(buf, lines, hl_group, node)
   local start_row, start_col, end_row, end_col = node:range()
   for row = start_row, end_row do
-    local case_14_ = lines[(row + 1)]
-    if (nil ~= case_14_) then
-      local line = case_14_
+    local case_18_ = lines[(row + 1)]
+    if (nil ~= case_18_) then
+      local line = case_18_
       if line["paint?"] then
         local from
         if (row == start_row) then
@@ -138,9 +172,9 @@ local function apply_capture(buf, lines, hl_group, node)
   return nil
 end
 local function apply_tree_captures(buf, lines, source, tree, ltree)
-  local case_19_ = vim.treesitter.query.get(ltree:lang(), "highlights")
-  if (nil ~= case_19_) then
-    local query = case_19_
+  local case_23_ = vim.treesitter.query.get(ltree:lang(), "highlights")
+  if (nil ~= case_23_) then
+    local query = case_23_
     for id, node in query:iter_captures(tree:root(), source) do
       apply_capture(buf, lines, ("@" .. query.captures[id]), node)
     end
@@ -151,7 +185,7 @@ local function apply_tree_captures(buf, lines, source, tree, ltree)
 end
 local function apply_treesitter(buf, lang, lines)
   local source
-  local _21_
+  local _25_
   do
     local tbl_26_ = {}
     local i_27_ = 0
@@ -163,23 +197,23 @@ local function apply_treesitter(buf, lang, lines)
       else
       end
     end
-    _21_ = tbl_26_
+    _25_ = tbl_26_
   end
-  source = table.concat(_21_, "\n")
+  source = table.concat(_25_, "\n")
   local parser = vim.treesitter.get_string_parser(source, lang)
   local apply_to_tree
-  local function _23_(...)
+  local function _27_(...)
     return apply_tree_captures(buf, lines, source, ...)
   end
-  apply_to_tree = _23_
+  apply_to_tree = _27_
   parser:parse(true)
   return parser:for_each_tree(apply_to_tree)
 end
 local function apply_side(buf, lang_cache, filepath, lines)
   if (0 < #lines) then
-    local case_24_ = cached_lang(lang_cache, filepath)
-    if (nil ~= case_24_) then
-      local lang = case_24_
+    local case_28_ = cached_lang(lang_cache, filepath)
+    if (nil ~= case_28_) then
+      local lang = case_28_
       return pcall(apply_treesitter, buf, lang, lines)
     else
       return nil
@@ -191,9 +225,13 @@ end
 local function apply_region(buf, buf_lines, lang_cache, region)
   local lines = region_lines(buf_lines, region)
   if (0 < #lines) then
-    apply_line_backgrounds(buf, lines)
-    apply_side(buf, lang_cache, region["old-path"], side_lines(lines, "delete", false))
-    return apply_side(buf, lang_cache, region["new-path"], side_lines(lines, "add", true))
+    apply_line_backgrounds(buf, region, lines)
+    for i, series in ipairs(region.series) do
+      local series_lines0 = series_lines(lines, series, (1 == i))
+      apply_side(buf, lang_cache, region["old-path"], side_lines(series_lines0, "delete", false))
+      apply_side(buf, lang_cache, region["new-path"], side_lines(series_lines0, "add", true))
+    end
+    return nil
   else
     return nil
   end

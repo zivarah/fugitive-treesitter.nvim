@@ -45,7 +45,7 @@ local function hunk_region(lines, i, header, state, format)
   local _3fnew_path = (state["new-path"] or state["old-path"])
   local region
   if (_3fold_path and (stop > start)) then
-    region = {first = (start - 1), last = (stop - 1), ["marker-width"] = width, ["text-col"] = (format["text-offset"] + width), ["old-path"] = _3fold_path, ["new-path"] = _3fnew_path}
+    region = {first = (start - 1), last = (stop - 1), ["marker-width"] = width, ["text-col"] = (format["text-offset"] + width), series = format.series, ["series-width"] = format["series-width"], ["old-path"] = _3fold_path, ["new-path"] = _3fnew_path}
   else
     region = nil
   end
@@ -84,7 +84,7 @@ end
 local function unwrapped_hunk_line(line)
   return line
 end
-local formats = {git = {["hunk-line"] = unwrapped_hunk_line, ["parse-file-header"] = parse_git_file_header, ["text-offset"] = 0}, fugitive = {["hunk-line"] = unwrapped_hunk_line, ["parse-file-header"] = parse_status_file_header, ["text-offset"] = 0}}
+local formats = {git = {["hunk-line"] = unwrapped_hunk_line, ["parse-file-header"] = parse_git_file_header, ["text-offset"] = 0, series = {"context"}, ["series-width"] = 0}, fugitive = {["hunk-line"] = unwrapped_hunk_line, ["parse-file-header"] = parse_status_file_header, ["text-offset"] = 0, series = {"context"}, ["series-width"] = 0}}
 local function scan(lines, format)
   local regions = {}
   local state = {}

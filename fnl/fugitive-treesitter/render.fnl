@@ -48,6 +48,23 @@
   (faccumulate [body? true i 1 (length marker) &until (not body?)]
     (scan.body-prefix? (char-at marker i))))
 
+(fn region-columns [region]
+  "Identify the columns where different parts of a body line start.
+
+  Parameters:
+    `region`  The region. See `scan.regions`.
+
+  Returns a table of 0-based columns:
+    `series`  The first column of the marker that says which series holds the
+              line. The same as `marker` for formats with only one series.
+    `marker`  The first column of the marker indicating how the series changed
+              the line.
+    `text`    The first column of the actual source text of the line."
+  (let [text region.text-col
+        marker (- text region.marker-width)
+        series (- marker region.series-width)]
+    {: series : marker : text}))
+
 (fn region-lines [buf-lines region]
   "Collect the hunk body lines of a region.
 
@@ -55,22 +72,44 @@
     `buf-lines`  All the lines of the buffer, 1-indexed.
     `region`     The region. See `scan.regions`.
 
-  Returns a sequential table of `{:row :col :kind :text}`. `row` is the 0-based
-  buffer row, `col` is the 0-based buffer column where `text` starts, `kind` is
-  the line kind (see `scan.line-kind`), and `text` is the line without its
-  marker. A line that is not part of a hunk body is left out."
-  (let [text-col region.text-col
-        ;; The marker is the columns that end where the text starts, which is
-        ;; column 1 only for a format that puts the marker first.
-        marker-from (+ 1 (- text-col region.marker-width))]
+  Returns a sequential table of `{:row :col :series :kind :text}`. `row` is the
+  0-based buffer row, `col` is the 0-based buffer column where `text` starts,
+  `series` is the series that holds the line or `:context` when every series
+  does, `kind` is the line kind (see `scan.line-kind`), and `text` is the line
+  without its marker. A line that is not part of a hunk body is left out."
+  (let [cols (region-columns region)]
     (fcollect [row region.first (- region.last 1)]
-      (let [?line (. buf-lines (+ row 1))
-            ?marker (and ?line (string.sub ?line marker-from text-col))]
-        (if (and ?marker (marker? ?marker))
-            {: row
-             :col text-col
-             :kind (scan.line-kind ?marker)
-             :text (string.sub ?line (+ text-col 1))})))))
+      (case (. buf-lines (+ row 1))
+        line (let [marker (string.sub line (+ cols.marker 1) cols.text)
+                   series (string.sub line (+ cols.series 1) cols.marker)
+                   text (string.sub line (+ cols.text 1))]
+               (if (marker? marker)
+                   {: row
+                    :col cols.text
+                    :series (scan.line-kind series)
+                    :kind (scan.line-kind marker)
+                    : text}))))))
+
+(fn series-lines [lines series context-owner?]
+  "Collect the hunk body lines present in a given series.
+
+  Parameters:
+    `lines`           The hunk body lines. See `region-lines`.
+    `series`          The series for which to collect lines.
+    `context-owner?`  Whether this series owns highlighting for shared context
+                      lines.
+
+  Returns a sequential table of `{:row :col :kind :text :owned?}`, in buffer
+  order. A line that every series holds is owned by the first series alone, so
+  that it gets one set of captures rather than one per series."
+  (icollect [_ line (ipairs lines)]
+    (let [shared? (= :context line.series)]
+      (if (or shared? (= series line.series))
+          {:row line.row
+           :col line.col
+           :kind line.kind
+           :text line.text
+           :owned? (or (not shared?) context-owner?)}))))
 
 (fn side-lines [lines kind paint-context?]
   "Reconstruct one side of a hunk body.
@@ -80,21 +119,21 @@
   their context lines, so only one of them colors those.
 
   Parameters:
-    `lines`           The hunk body lines. See `region-lines`.
+    `lines`           The lines of one series. See `series-lines`.
     `kind`            The kind of the changed lines of the side, `:add` or
                       `:delete`. See `scan.line-kind`.
     `paint-context?`  Whether this side colors its context lines.
 
   Returns a sequential table of `{:row :col :text :paint?}`, in buffer order.
   `row` and `col` say where `text` starts in the buffer. A line with a false
-  `paint?` is present only to give the parser its surrounding code."
+  `paint?` will be painted by a different series/side."
   (icollect [_ line (ipairs lines)]
     (match line.kind
-      kind {:row line.row :col line.col :text line.text :paint? true}
+      kind {:row line.row :col line.col :text line.text :paint? line.owned?}
       :context {:row line.row
                 :col line.col
                 :text line.text
-                :paint? paint-context?})))
+                :paint? (and paint-context? line.owned?)})))
 
 (fn kind->hl-group [kind]
   "Get the highlight group that colors a whole diff line.
@@ -107,18 +146,20 @@
     :add highlight.add-group
     :delete highlight.delete-group))
 
-(fn apply-line-backgrounds [buf lines]
+(fn apply-line-backgrounds [buf region lines]
   "Color the whole of each added and each removed line.
 
   Parameters:
-    `buf`    The buffer number.
-    `lines`  The hunk body lines. See `region-lines`."
-  (each [_ {: row : kind : col : text} (ipairs lines)]
-    (case (kind->hl-group kind)
-      hl-group (set-extmark buf row 0
-                            {:end_col (+ col (length text))
-                             :hl_group hl-group
-                             :priority priority-line}))))
+    `buf`     The buffer number.
+    `region`  The region that the lines belong to. See `scan.regions`.
+    `lines`   The hunk body lines. See `region-lines`."
+  (let [cols (region-columns region)]
+    (each [_ {: row : kind : col : text} (ipairs lines)]
+      (case (kind->hl-group kind)
+        hl-group (set-extmark buf row cols.marker
+                              {:end_col (+ col (length text))
+                               :hl_group hl-group
+                               :priority priority-line})))))
 
 (fn resolve-lang [filepath]
   "Find the treesitter language of a file.
@@ -225,11 +266,15 @@
     `region`      The region. See `scan.regions`."
   (let [lines (region-lines buf-lines region)]
     (when (< 0 (length lines))
-      (apply-line-backgrounds buf lines)
-      ;; The new side colors the context lines, because both sides hold them.
-      (apply-side buf lang-cache region.old-path
-                  (side-lines lines :delete false))
-      (apply-side buf lang-cache region.new-path (side-lines lines :add true)))))
+      (apply-line-backgrounds buf region lines)
+      (each [i series (ipairs region.series)]
+        ;; Arbitrarily choose the first series to own context highlights
+        (let [series-lines (series-lines lines series (= 1 i))]
+          ;; The new side colors the context lines, because both sides hold them.
+          (apply-side buf lang-cache region.old-path
+                      (side-lines series-lines :delete false))
+          (apply-side buf lang-cache region.new-path
+                      (side-lines series-lines :add true)))))))
 
 (fn apply-regions [buf buf-lines regions]
   "Apply the diff highlights of every region of a buffer.

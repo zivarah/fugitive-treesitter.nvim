@@ -61,6 +61,8 @@
                                   :last 9
                                   :marker-width 1
                                   :text-col 1
+                                  :series [:context]
+                                  :series-width 0
                                   :old-path :lua/foo.lua
                                   :new-path :lua/foo.lua}
                                  (. regions 1)))))
@@ -189,7 +191,8 @@
                     (assert.equals :a.lua (. regions 2 :new-path)))))
             (it "reads the marker width of a combined diff"
                 (fn []
-                  ;; A combined diff header carries one `@` per parent plus one.
+                  ;; A combined diff header contains one `@` per parent plus
+                  ;; one.
                   (let [regions (git ["diff --cc a.lua"
                                       "--- a/a.lua"
                                       "+++ b/a.lua"
@@ -233,6 +236,8 @@
                                   :last 7
                                   :marker-width 1
                                   :text-col 1
+                                  :series [:context]
+                                  :series-width 0
                                   :old-path :lua/foo.lua
                                   :new-path :lua/foo.lua}
                                  (. regions 1)))))

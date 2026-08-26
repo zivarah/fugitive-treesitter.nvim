@@ -132,6 +132,8 @@
                     :last (- stop 1)
                     :marker-width width
                     :text-col (+ format.text-offset width)
+                    :series format.series
+                    :series-width format.series-width
                     :old-path ?old-path
                     :new-path ?new-path})]
     (values region stop)))
@@ -201,12 +203,22 @@
 ;;   `parse-file-header`  Parse a file header and return the new file state, or
 ;;                        nil when the buffer line is not a file header.
 ;;   `text-offset`        The 0-based buffer column where the diff line starts.
+;;   `series`             The series of patches that the format shows, which are
+;;                        parsed apart from each other. A format that shows one
+;;                        patch has one series, and every line belongs to it.
+;;   `series-width`       The number of columns that are used to indicate which
+;;                        series a line belongs to. Will be 0 for simple diffs
+;;                        where there is just a single old vs. new patch.
 (local formats {:git {:hunk-line unwrapped-hunk-line
                       :parse-file-header parse-git-file-header
-                      :text-offset 0}
+                      :text-offset 0
+                      :series [:context]
+                      :series-width 0}
                 :fugitive {:hunk-line unwrapped-hunk-line
                            :parse-file-header parse-status-file-header
-                           :text-offset 0}})
+                           :text-offset 0
+                           :series [:context]
+                           :series-width 0}})
 
 (fn scan [lines format]
   "Find the hunk regions of a diff buffer.
@@ -262,6 +274,10 @@
     `text-col`      The 0-based column where the text of a body line starts.
                     The marker characters are the `marker-width` columns that
                     end there.
+    `series`        The series of patches to parse apart from each other. See
+                    `formats`.
+    `series-width`  The number of columns, just before the marker, that say
+                    which series a body line belongs to.
     `old-path`      The path of the file before the change.
     `new-path`      The path of the file after the change. This differs from
                     `old-path` only for a rename.
