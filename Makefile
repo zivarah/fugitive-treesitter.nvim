@@ -21,9 +21,10 @@ FNLFMT      := $(TOOLS)/fnlfmt
 FENNEL_LS   := $(TOOLS)/fennel-ls
 DOCSETS     := $(TOOLS_SHARE)/fennel-ls/docsets
 
-# fnlfmt 0.3.2
+# fnlfmt 0.3.3-dev. The 0.3.2 release formats a few forms differently, so keep
+# this revision the same as the one in shell.nix.
 FNLFMT_URL := https://git.sr.ht/~technomancy/fnlfmt
-FNLFMT_REV := 9a7c8b1568841ff20a6b007f810262dc2935eeb6
+FNLFMT_REV := e059775b9ce38cdcf3c1d5458ca2e5f2ecf698b3
 # fennel-ls 0.2.3
 FENNEL_LS_URL := https://git.sr.ht/~xerool/fennel-ls
 FENNEL_LS_REV := 44f931d38da301bbabd107f4d00cce9920b03b9c
