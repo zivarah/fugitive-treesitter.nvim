@@ -151,7 +151,11 @@
       :delete (if dim? highlight.delete-dim-group highlight.delete-group))))
 
 (fn apply-line-backgrounds [buf region lines]
-  "Color the whole of each added and each removed line.
+  "Color each added and each removed line.
+
+  The background covers the marker of the patch together with the text after it.
+  The column in front of them, which says which series holds the line of a
+  range-diff, is colored on its own. See `decoration-groups`.
 
   Parameters:
     `buf`     The buffer number.
@@ -164,6 +168,38 @@
                               {:end_col (+ col (length text))
                                :hl_group hl-group
                                :priority priority-line})))))
+
+;; The highlight group that colors each kind of part that carries no code. See
+;; `scan.decorations`.
+;;
+;; The marker of a series takes the plain background of that series and never
+;; the dim one, because it is a single column and has to stay legible beside the
+;; dim background of the rest of the line. A `-+` line therefore carries the
+;; removed color on its marker and the added color across everything after it.
+(local decoration-groups {:series-add highlight.add-group
+                          :series-delete highlight.delete-group
+                          :commit highlight.commit-group
+                          :commit-add highlight.commit-add-group
+                          :commit-delete highlight.commit-delete-group
+                          :hunk highlight.hunk-group
+                          :patch-hunk highlight.patch-hunk-group
+                          :file highlight.file-group})
+
+(fn apply-decorations [buf parts]
+  "Color the parts of a buffer that carry no code.
+
+  Every part sits outside the body of a hunk, or in the column in front of one,
+  so no part ever overlaps a line background or a treesitter capture.
+
+  Parameters:
+    `buf`    The buffer number.
+    `parts`  The parts to color. See `scan.decorations`."
+  (each [_ part (ipairs parts)]
+    (case (. decoration-groups part.kind)
+      hl-group (set-extmark buf part.row part.col
+                            {:end_col part.end-col
+                             :hl_group hl-group
+                             :priority priority-syntax}))))
 
 (fn resolve-lang [filepath]
   "Find the treesitter language of a file.
@@ -323,6 +359,7 @@
       (let [filetype (vim.api.nvim_get_option_value :filetype {: buf})
             buf-lines (vim.api.nvim_buf_get_lines buf 0 -1 false)]
         (highlight.ensure)
+        (apply-decorations buf (scan.decorations buf-lines filetype))
         (apply-regions buf buf-lines (scan.regions buf-lines filetype))))))
 
 {: clear : buffer}

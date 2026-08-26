@@ -133,6 +133,18 @@ local function apply_line_backgrounds(buf, region, lines)
   end
   return nil
 end
+local decoration_groups = {["series-add"] = highlight["add-group"], ["series-delete"] = highlight["delete-group"], commit = highlight["commit-group"], ["commit-add"] = highlight["commit-add-group"], ["commit-delete"] = highlight["commit-delete-group"], hunk = highlight["hunk-group"], ["patch-hunk"] = highlight["patch-hunk-group"], file = highlight["file-group"]}
+local function apply_decorations(buf, parts)
+  for _, part in ipairs(parts) do
+    local case_17_ = decoration_groups[part.kind]
+    if (nil ~= case_17_) then
+      local hl_group = case_17_
+      set_extmark(buf, part.row, part.col, {end_col = part["end-col"], hl_group = hl_group, priority = priority_syntax})
+    else
+    end
+  end
+  return nil
+end
 local function resolve_lang(filepath)
   local _3fft = vim.filetype.match({filename = filepath})
   local _3flang = (_3fft and vim.treesitter.language.get_lang(_3fft))
@@ -157,9 +169,9 @@ end
 local function apply_capture(buf, lines, hl_group, node)
   local start_row, start_col, end_row, end_col = node:range()
   for row = start_row, end_row do
-    local case_20_ = lines[(row + 1)]
-    if (nil ~= case_20_) then
-      local line = case_20_
+    local case_22_ = lines[(row + 1)]
+    if (nil ~= case_22_) then
+      local line = case_22_
       if line["paint?"] then
         local from
         if (row == start_row) then
@@ -182,9 +194,9 @@ local function apply_capture(buf, lines, hl_group, node)
   return nil
 end
 local function apply_tree_captures(buf, lines, source, tree, ltree)
-  local case_25_ = vim.treesitter.query.get(ltree:lang(), "highlights")
-  if (nil ~= case_25_) then
-    local query = case_25_
+  local case_27_ = vim.treesitter.query.get(ltree:lang(), "highlights")
+  if (nil ~= case_27_) then
+    local query = case_27_
     for id, node in query:iter_captures(tree:root(), source) do
       apply_capture(buf, lines, ("@" .. query.captures[id]), node)
     end
@@ -195,7 +207,7 @@ local function apply_tree_captures(buf, lines, source, tree, ltree)
 end
 local function apply_treesitter(buf, lang, lines)
   local source
-  local _27_
+  local _29_
   do
     local tbl_26_ = {}
     local i_27_ = 0
@@ -207,23 +219,23 @@ local function apply_treesitter(buf, lang, lines)
       else
       end
     end
-    _27_ = tbl_26_
+    _29_ = tbl_26_
   end
-  source = table.concat(_27_, "\n")
+  source = table.concat(_29_, "\n")
   local parser = vim.treesitter.get_string_parser(source, lang)
   local apply_to_tree
-  local function _29_(...)
+  local function _31_(...)
     return apply_tree_captures(buf, lines, source, ...)
   end
-  apply_to_tree = _29_
+  apply_to_tree = _31_
   parser:parse(true)
   return parser:for_each_tree(apply_to_tree)
 end
 local function apply_side(buf, lang_cache, filepath, lines)
   if (0 < #lines) then
-    local case_30_ = cached_lang(lang_cache, filepath)
-    if (nil ~= case_30_) then
-      local lang = case_30_
+    local case_32_ = cached_lang(lang_cache, filepath)
+    if (nil ~= case_32_) then
+      local lang = case_32_
       return pcall(apply_treesitter, buf, lang, lines)
     else
       return nil
@@ -266,6 +278,7 @@ local function buffer(buf)
     local filetype = vim.api.nvim_get_option_value("filetype", {buf = buf})
     local buf_lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
     highlight.ensure()
+    apply_decorations(buf, scan.decorations(buf_lines, filetype))
     return apply_regions(buf, buf_lines, scan.regions(buf_lines, filetype))
   else
     return nil

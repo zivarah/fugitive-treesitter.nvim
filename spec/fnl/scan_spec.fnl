@@ -10,6 +10,26 @@
   "Scan lines as a fugitive status buffer."
   (scan.regions lines :fugitive))
 
+(fn decorations [lines filetype]
+  "Wrapper around `scan.decorations` that adds `:text`, the text covered by the
+  returned span.
+
+  Returns a sequential table of `{:row :kind :text}`, where `text` is the text
+  of the line that the span covers."
+  (icollect [_ span (ipairs (scan.decorations lines filetype))]
+    (let [line (. lines (+ span.row 1))
+          start-col (+ span.col 1)
+          end-col span.end-col]
+      {:row span.row :kind span.kind :text (string.sub line start-col end-col)})))
+
+(fn decorations-on [lines row]
+  "Find the spans to color of one row of a range-diff.
+
+  Returns a sequential table of `{:kind :text}`, where `text` is the text that
+  the span covers."
+  (icollect [_ span (ipairs (decorations lines :git))]
+    (if (= row span.row) {:kind span.kind :text span.text})))
+
 (describe :body-prefix?
           (fn []
             (it "accepts the three hunk body markers"
@@ -366,3 +386,113 @@
                                         "@@ -1 +1 @@"
                                         "-local a = 1"
                                         "+local a = 2"]))))))
+
+(local one-pair [" 1:  1111111 ! 1:  2222222 fix: something"
+                 "    @@ Commit message"
+                 "          fix: something"
+                 "      ## a.lua ##"
+                 "     @@ a.lua: local m = {}"
+                 "      local m = {}"
+                 "     -local timeout = 30"
+                 "    -+local timeout = 45"
+                 "    ++local timeout = 60"
+                 "      return m"])
+
+(describe "decorations of a range-diff"
+          (fn []
+            (it "colors each side of a changed pair by its series"
+                (fn []
+                  (assert.same [{:row 0
+                                 :kind :commit-delete
+                                 :text "1:  1111111"}
+                                {:row 0 :kind :commit :text "!"}
+                                {:row 0 :kind :commit-add :text "1:  2222222"}]
+                               (decorations [(. one-pair 1)] :git))))
+            (it "colors a whole entry that says one thing about the pair"
+                (fn []
+                  ;; A pair whose patches match, one that only the later series
+                  ;; has, and one that only the earlier series has.
+                  (assert.same [{:row 0
+                                 :kind :commit
+                                 :text "1:  1111111 = 1:  2222222 fix: same"}]
+                               (decorations [" 1:  1111111 = 1:  2222222 fix: same"]
+                                            :git))
+                  (assert.same [{:row 0
+                                 :kind :commit-add
+                                 :text "-:  ------- > 2:  2222222 fix: new"}]
+                               (decorations [" -:  ------- > 2:  2222222 fix: new"]
+                                            :git))
+                  (assert.same [{:row 0
+                                 :kind :commit-delete
+                                 :text "1:  1111111 < -:  ------- fix: gone"}]
+                               (decorations [" 1:  1111111 < -:  ------- fix: gone"]
+                                            :git))))
+            (it "colors the hunk header of the outer diff and what it names"
+                (fn []
+                  ;; The header of the outer diff contains no marker of its own,
+                  ;; and repeats the name of the section it opens.
+                  (assert.same [{:kind :hunk :text "@@"}
+                                {:kind :file :text "Commit message"}]
+                               (decorations-on one-pair 1))))
+            (it "colors the hunk header of a patch and what it names"
+                (fn []
+                  ;; The header of a patch contains a marker, and names the file
+                  ;; with the code around the hunk after it.
+                  (assert.same [{:kind :patch-hunk :text "@@"}
+                                {:kind :file :text :a.lua}]
+                               (decorations-on one-pair 4))))
+            (it "colors the heading that names a file"
+                (fn []
+                  ;; A range-diff writes this heading in place of the
+                  ;; `diff --git` header of an ordinary diff.
+                  (assert.same [{:kind :file :text :a.lua}]
+                               (decorations-on one-pair 3))))
+            (it "drops the note that a heading makes about a new file"
+                (fn []
+                  (assert.same [{:kind :file :text :docs/a.md}]
+                               (decorations-on [(. one-pair 1)
+                                                "      ## docs/a.md (new) ##"]
+                                               1))
+                  (assert.same [{:kind :hunk :text "@@"}
+                                {:kind :file :text :docs/a.md}]
+                               (decorations-on [(. one-pair 1)
+                                                "    @@ docs/a.md (new)"]
+                                               1))))
+            (it "marks the series that contains a patch line"
+                (fn []
+                  ;; Every line of a patch contains the marker, whatever the
+                  ;; patch does to the line. A line that both series contain has
+                  ;; no series to mark.
+                  (assert.same [{:row 7 :kind :series-delete :text "-"}
+                                {:row 8 :kind :series-add :text "+"}]
+                               (icollect [_ span (ipairs (decorations one-pair
+                                                                      :git))]
+                                 (if (vim.startswith span.kind :series) span)))))
+            (it "marks the series of a line that no hunk covers"
+                (fn []
+                  ;; The commit message section contains prose rather than code,
+                  ;; so the plugin parses nothing there and finds no hunk. The
+                  ;; marker still says which series contains each line.
+                  (let [lines [(. one-pair 1)
+                               "    @@ Commit message"
+                               "    -    fix: old subject"
+                               "    +    fix: new subject"]]
+                    (assert.same [{:kind :series-delete :text "-"}]
+                                 (decorations-on lines 2))
+                    (assert.same [{:kind :series-add :text "+"}]
+                                 (decorations-on lines 3)))))
+            (it "finds nothing in a format that shows one patch"
+                (fn []
+                  (assert.same []
+                               (decorations ["diff --git a/a.lua b/a.lua"
+                                             "@@ -1 +1 @@"
+                                             "-local a = 1"
+                                             "+local a = 2"]
+                                            :git))
+                  (assert.same []
+                               (decorations ["Head: main"
+                                             "M a.lua"
+                                             "@@ -1 +1 @@"
+                                             "-local a = 1"
+                                             "+local a = 2"]
+                                            :fugitive))))))

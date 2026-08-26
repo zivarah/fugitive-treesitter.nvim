@@ -6,7 +6,8 @@
 (local ns (. (vim.api.nvim_get_namespaces) :fugitive-treesitter))
 
 ;; The priority that the plugin gives a line background. It is what tells one
-;; apart from the marks above it, which color a treesitter capture.
+;; apart from the marks above it, which color a treesitter capture or a part of
+;; the buffer that carries no code.
 (local priority-line 190)
 
 (fn diff-buffer [filetype lines]
@@ -49,6 +50,22 @@
 
   Returns true for a mark whose group is a capture group."
   (and mark.hl-group (vim.startswith mark.hl-group "@")))
+
+(fn colored-parts-on [buf row]
+  "Collect the parts of one row that the plugin colors, other than a treesitter
+  capture.
+
+  Parameters:
+    `buf`  The buffer number.
+    `row`  The 0-based row.
+
+  Returns a sequential table of `{:text :hl-group}`, in column order, where
+  `text` is the text that the mark covers."
+  (let [line (. (vim.api.nvim_buf_get_lines buf row (+ row 1) false) 1)]
+    (icollect [_ mark (ipairs (marks buf))]
+      (if (and (= row mark.row) mark.hl-group (not (capture? mark)))
+          {:text (string.sub line (+ mark.col 1) mark.end-col)
+           :hl-group mark.hl-group}))))
 
 (fn background? [mark]
   "Test whether a mark colors the background of a diff line.
@@ -107,8 +124,7 @@
   (let [seen {}
         duplicates []]
     (each [_ mark (ipairs (marks buf))]
-      (when (and (= row mark.row) mark.hl-group
-                 (vim.startswith mark.hl-group "@"))
+      (when (and (= row mark.row) (capture? mark))
         (let [key (string.format "%d:%d:%s" mark.col mark.end-col mark.hl-group)]
           (if (. seen key)
               (table.insert duplicates key)
@@ -166,6 +182,16 @@
                       (assert.equals highlight.add-group background.hl-group)
                       (assert.equals 0 background.col)
                       (assert.equals 1 background.end-col)))))
+            (it "colors an ordinary diff line with one mark from its marker on"
+                (fn []
+                  ;; An ordinary diff shows one series, so no column in front of
+                  ;; the marker says which series holds the line, and there is
+                  ;; nothing to color apart.
+                  (let [buf (diff-buffer :git one-file)]
+                    (render.buffer buf)
+                    (assert.same [{:text "-local timeout = 30"
+                                   :hl-group highlight.delete-group}]
+                                 (colored-parts-on buf 5)))))
             (it "places treesitter captures shifted past the diff marker"
                 (fn []
                   (let [buf (diff-buffer :git one-file)]
@@ -368,6 +394,65 @@
                                   5 highlight.add-dim-group
                                   6 highlight.add-group}
                                  (line-groups buf)))))
+            (it "colors the marker of the series apart from the rest of the line"
+                (fn []
+                  ;; The old series holds row 5, and the patch of that series
+                  ;; adds the line. So the marker carries the removed color and
+                  ;; everything after it carries the added one.
+                  (let [buf (diff-buffer :git one-pair)]
+                    (render.buffer buf)
+                    (assert.same [{:text "-" :hl-group highlight.delete-group}
+                                  {:text "+local timeout = 45"
+                                   :hl-group highlight.add-dim-group}]
+                                 (colored-parts-on buf 5)))))
+            (it "leaves the marker of a line that both series hold uncolored"
+                (fn []
+                  ;; Row 4 is ` -`: both series hold it, so there is no series
+                  ;; to mark, and the removed color starts at the inner marker.
+                  (let [buf (diff-buffer :git one-pair)]
+                    (render.buffer buf)
+                    (assert.same [{:text "-local timeout = 30"
+                                   :hl-group highlight.delete-group}]
+                                 (colored-parts-on buf 4)))))
+            (it "colors the entry that pairs two commits"
+                (fn []
+                  ;; The subject gets no part of its own, so it keeps the
+                  ;; foreground of the editor.
+                  (let [buf (diff-buffer :git one-pair)]
+                    (render.buffer buf)
+                    (assert.same [{:text "1:  1111111"
+                                   :hl-group highlight.commit-delete-group}
+                                  {:text "!" :hl-group highlight.commit-group}
+                                  {:text "1:  2222222"
+                                   :hl-group highlight.commit-add-group}]
+                                 (colored-parts-on buf 0)))))
+            (it "colors the hunk header of a patch and the heading above it"
+                (fn []
+                  ;; The heading stands in for the `diff --git` header of an
+                  ;; ordinary diff, and names the file that follows.
+                  (let [buf (diff-buffer :git one-pair)]
+                    (render.buffer buf)
+                    (assert.same [{:text :a.lua :hl-group highlight.file-group}]
+                                 (colored-parts-on buf 1))
+                    (assert.same [{:text "@@"
+                                   :hl-group highlight.patch-hunk-group}]
+                                 (colored-parts-on buf 2)))))
+            (it "colors the marker of a line that no hunk covers"
+                (fn []
+                  ;; The commit message section holds prose rather than code, so
+                  ;; there is no hunk to parse and no background to place. The
+                  ;; marker still says which series holds the line.
+                  (let [buf (diff-buffer :git
+                                         [" 1:  1111111 ! 1:  2222222 fix: x"
+                                          "    @@ Commit message"
+                                          "    -    fix: old subject"
+                                          "    +    fix: new subject"])]
+                    (render.buffer buf)
+                    (assert.same {} (line-groups buf))
+                    (assert.same [{:text "-" :hl-group highlight.delete-group}]
+                                 (colored-parts-on buf 2))
+                    (assert.same [{:text "+" :hl-group highlight.add-group}]
+                                 (colored-parts-on buf 3)))))
             (it "dims only the lines that the earlier series alone holds"
                 (fn []
                   ;; `--` and `-+` belong to the old series alone, so both are

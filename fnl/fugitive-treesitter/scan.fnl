@@ -213,6 +213,44 @@
           :dropped (range-diff-header-pattern commit-side "<" missing-side)
           :added (range-diff-header-pattern missing-side ">" commit-side)}))
 
+(fn match->span [from to]
+  "Make a column range out of the positions of a string match.
+
+  Parameters:
+    `from`  The 1-based position where the span starts.
+    `to`    The 1-based position just past the end of the span.
+
+  Returns a table of `col` and `end-col`, both 0-based columns, where `end-col`
+  is the column just past the span."
+  {:col (- from 1) :end-col (- to 1)})
+
+(fn range-diff-header-spans [line]
+  "Find the spans of the entry that pairs a commit of one series with a commit
+  of the other.
+
+  Parameters:
+    `line`  The buffer line.
+
+  Returns a table, or nil when the line is not such an entry:
+    `kind`      The relationship between the two sides, see keys of
+                `range-diff-header-patterns`.
+    `old`       The side that names the commit of the earlier series.
+    `operator`  The character between the two sides.
+    `new`       The side that names the commit of the later series.
+    `subject`   Everything past the two sides, which is the subject of the
+                commit. This is an empty range when the entry carries none.
+
+  Each span is a column range. See `span`."
+  (accumulate [?spans nil kind pattern (pairs range-diff-header-patterns)
+               &until ?spans]
+    (let [[old-from old-to op-from op-to new-from new-to] [(line:match pattern)]]
+      (if old-from
+          {: kind
+           :old (match->span old-from old-to)
+           :operator (match->span op-from op-to)
+           :new (match->span new-from new-to)
+           :subject (match->span new-to (+ 1 (length line)))}))))
+
 (fn range-diff-patch-line [line]
   "Get the patch line from a range-diff buffer line.
 
@@ -304,9 +342,122 @@
     `line`  The buffer line.
 
   Returns true for a range-diff header."
-  (accumulate [found? false _ pattern (pairs range-diff-header-patterns)
-               &until found?]
-    (not= nil (line:match pattern))))
+  (not= nil (range-diff-header-spans line)))
+
+(fn colored [kind range]
+  "Say how to color a column range.
+
+  Parameters:
+    `kind`   What the range covers. See `decorations`.
+    `range`  The column range. See `span`.
+
+  Returns the range with its kind, as `{:col :end-col :kind}`."
+  {:col range.col :end-col range.end-col : kind})
+
+(fn whole-entry [spans]
+  "Make the range that covers a whole range-diff header entry.
+
+  Parameters:
+    `spans`  The spans of the entry. See `range-diff-header-spans`.
+
+  Returns the range from the first side to the end of the subject, which leaves
+  out the whitespace that lines the entry up with the ones around it."
+  {:col spans.old.col :end-col spans.subject.end-col})
+
+(fn range-diff-header-decorations [line]
+  "Find the spans to color of a range-diff header entry.
+
+  Parameters:
+    `line`  The buffer line.
+
+  Returns a sequential table of spans, in column order, or nil when the line is
+  not a range-diff header entry. See `decorations`."
+  (case (range-diff-header-spans line)
+    spans (case spans.kind
+            :changed [(colored :commit-delete spans.old)
+                      (colored :commit spans.operator)
+                      (colored :commit-add spans.new)]
+            :dropped [(colored :commit-delete (whole-entry spans))]
+            :added [(colored :commit-add (whole-entry spans))]
+            :same [(colored :commit (whole-entry spans))])))
+
+(fn hunk-header-decorations [line pattern kind]
+  "Find the spans to color of a hunk header.
+
+  Parameters:
+    `line`     The buffer line.
+    `pattern`  The pattern that reads the header. It captures the position of
+               the `@@` marker, the position just past it, the position where
+               the heading starts, and the heading itself.
+    `kind`     What to color the `@@` marker as.
+
+  Returns a sequential table of spans, in column order, or nil when the line is
+  not a hunk header of this shape. The heading names the file or the section
+  that the hunk belongs to, and a header that carries none gives the marker
+  alone."
+  (case (line:match pattern)
+    (marker-from marker-to heading-from heading)
+    (let [marker (colored kind (match->span marker-from marker-to))
+          path (range-diff-section-path heading)]
+      (if (< 0 (length path))
+          [marker
+           (colored :file
+                    (match->span heading-from (+ heading-from (length path))))]
+          [marker]))))
+
+(fn section-heading-decorations [line]
+  "Find the spans to color of the heading that a range-diff writes in place of
+  the `diff --git` header of an ordinary diff.
+
+  Parameters:
+    `line`  The buffer line.
+
+  Returns a sequential table containing the span for the file name, or nil when
+  the line is not a file heading."
+  (case (line:match "^    [ +-][ +-]## ()(.+) ##$")
+    (from heading) (let [path (range-diff-section-path heading)
+                         span (match->span from (+ from (length path)))]
+                     [(colored :file span)])))
+
+(fn series-marker-decorations [line]
+  "Find the marker that says which series contains a patch line.
+
+  Parameters:
+    `line`  The buffer line.
+
+  Returns a sequential table containging the span for the marker. The table
+  is empty when the line doesn't have a marker or when both series contain the
+  line."
+  (case (line:match "^    ()[ +-]()")
+    (from to) (case (line-kind (char-at line from))
+                :add [(colored :series-add (match->span from to))]
+                :delete [(colored :series-delete (match->span from to))]
+                _ [])
+    _ []))
+
+(fn range-diff-patch-decorations [line]
+  "Find the spans to color of one line of a patch.
+
+  Parameters:
+    `line`  The buffer line.
+
+  Returns a sequential table of spans, in column order."
+  (vim.list_extend (series-marker-decorations line)
+                   (or (hunk-header-decorations line
+                                                "^    [ +-]()@@()%s*()(.*)$"
+                                                :patch-hunk)
+                       (section-heading-decorations line) [])))
+
+(fn range-diff-decorations [line]
+  "Find the spans to color of a `git range-diff` line.
+
+  Parameters:
+    `line`  The buffer line.
+
+  Returns a sequential table of spans, in column order. See `decorations`."
+  (or (range-diff-header-decorations line)
+      (hunk-header-decorations line "^    ()@@()%s*()(.*)$" :hunk)
+      (range-diff-patch-decorations line)))
 
 (fn first-content-line [lines]
   "Get the first non-empty line of a buffer.
@@ -356,6 +507,10 @@
 ;;   `series-width`       The number of columns that are used to indicate which
 ;;                        series a line belongs to. Will be 0 for simple diffs
 ;;                        where there is just a single old vs. new patch.
+;;   `decorate`           Find the spans to color of a line that is not the body
+;;                        of a hunk. See `decorations`. Absent for a format whose
+;;                        lines are all either a hunk body or a header that the
+;;                        built-in `git` syntax already colors.
 (local formats {:git {:hunk-line unwrapped-hunk-line
                       :parse-file-header parse-git-file-header
                       :text-offset 0
@@ -370,7 +525,8 @@
                              :parse-file-header parse-range-diff-file-header
                              :text-offset 5
                              :series [:delete :add]
-                             :series-width 1}})
+                             :series-width 1
+                             :decorate range-diff-decorations}})
 
 (fn buffer-format [lines filetype]
   "Choose the diff format to use for a buffer based on its content and filetype.
@@ -453,4 +609,41 @@
   file."
   (scan lines (buffer-format lines filetype)))
 
-{: body-prefix? : line-kind : regions}
+(fn decorations [lines filetype]
+  "Find the spans that aren't code (and therefore won't get treesitter
+  highlighting) that need to be decorated.
+
+  Parameters:
+    `lines`     The lines of the buffer, 1-indexed.
+    `filetype`  The filetype of the buffer. See `regions`.
+
+  Returns a sequential table of spans, in buffer order. A span contains:
+    `row`      The 0-based row.
+    `col`      The 0-based column where the span starts.
+    `end-col`  The 0-based column just past its end.
+    `kind`     What the span is:
+               `series-add`     The marker of a line that is only present in the
+                                later series of a range-diff.
+               `series-delete`  The marker of a line that is only present in the
+                                earlier series of a range-diff.
+               `commit-add`     The side of a range-diff header entry that names a
+                                commit of the later series.
+               `commit-delete`  The side that names a commit of the earlier
+                                series.
+               `commit`         The rest of a range-diff header entry.
+               `hunk`           The marker of a hunk header of the outer diff.
+               `patch-hunk`     The marker of a hunk header of a patch.
+               `file`           The name of the file or of the section that a
+                                header names.
+
+  Returns an empty table for a format that has no such lines."
+  (let [format (buffer-format lines filetype)
+        spans []]
+    (when format.decorate
+      (each [i line (ipairs lines)]
+        (each [_ span (ipairs (format.decorate line))]
+          (set span.row (- i 1))
+          (table.insert spans span))))
+    spans))
+
+{: body-prefix? : line-kind : regions : decorations}
