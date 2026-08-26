@@ -343,6 +343,82 @@
                     ;; capture of its own.
                     (assert.is_nil (. (captures-on buf 5) :whatever)))))))
 
+;; A range-diff indents each patch by four columns and puts one marker of its
+;; own in front of it. Here `-+` is the line that only the old series adds, and
+;; `++` the line that replaces it in the new series.
+(local one-pair [" 1:  1111111 ! 1:  2222222 fix: something"
+                 "      ## a.lua ##"
+                 "     @@"
+                 "      local m = {}"
+                 "     -local timeout = 30"
+                 "    -+local timeout = 45"
+                 "    ++local timeout = 60"
+                 "      return m"])
+
+(describe "range-diff output"
+          (fn []
+            (it "colors the lines by the marker of the patch"
+                (fn []
+                  ;; The inner marker says whether the patch adds or removes the
+                  ;; line, so it picks the group. The outer marker says which
+                  ;; series holds it, so it picks the plain or the dim group.
+                  (let [buf (diff-buffer :git one-pair)]
+                    (render.buffer buf)
+                    (assert.same {4 highlight.delete-group
+                                  5 highlight.add-dim-group
+                                  6 highlight.add-group}
+                                 (line-groups buf)))))
+            (it "dims only the lines that the earlier series alone holds"
+                (fn []
+                  ;; `--` and `-+` belong to the old series alone, so both are
+                  ;; dimmed. A line that both series hold, or that only the new
+                  ;; series holds, keeps the plain group.
+                  (let [buf (diff-buffer :git
+                                         [" 1:  1111111 ! 1:  2222222 fix: x"
+                                          "      ## a.lua ##"
+                                          "     @@"
+                                          "    --local dropped = 1"
+                                          "    -+local old_add = 2"
+                                          "     -local shared_del = 3"
+                                          "    ++local new_add = 4"
+                                          "    +-local new_del = 5"])]
+                    (render.buffer buf)
+                    (assert.same {3 highlight.delete-dim-group
+                                  4 highlight.add-dim-group
+                                  5 highlight.delete-group
+                                  6 highlight.add-group
+                                  7 highlight.delete-group}
+                                 (line-groups buf)))))
+            (it "parses each series apart from the other"
+                (fn []
+                  ;; Together the two added lines are not valid code, so a
+                  ;; single parse loses the captures of at least one of them.
+                  (let [buf (diff-buffer :git one-pair)]
+                    (render.buffer buf)
+                    (assert.equals "@number" (. (captures-on buf 5) :45))
+                    (assert.equals "@number" (. (captures-on buf 6) :60))
+                    (assert.equals "@keyword" (. (captures-on buf 5) :local))
+                    (assert.equals "@keyword" (. (captures-on buf 6) :local)))))
+            (it "strips both markers"
+                (fn []
+                  (let [buf (diff-buffer :git one-pair)]
+                    (render.buffer buf)
+                    (assert.equals "@number" (. (captures-on buf 4) :30))
+                    (assert.is_nil (. (captures-on buf 6) "+"))
+                    (assert.is_nil (. (captures-on buf 5) "-+")))))
+            (it "colors a line that both series hold once"
+                (fn []
+                  ;; A context line takes part in the parse of both series, so
+                  ;; only one of them may color it.
+                  (let [buf (diff-buffer :git one-pair)]
+                    (render.buffer buf)
+                    (assert.same [] (duplicate-captures-on buf 3))
+                    (assert.same [] (duplicate-captures-on buf 4))
+                    (assert.same [] (duplicate-captures-on buf 7))
+                    (assert.equals "@keyword" (. (captures-on buf 3) :local))
+                    (assert.equals "@keyword.return"
+                                   (. (captures-on buf 7) :return)))))))
+
 (describe :clear
           (fn []
             (it "removes every highlight the plugin placed"

@@ -220,6 +220,98 @@
                   (assert.same {} (git []))
                   (assert.same {} (git ["commit abc123" "Author: Someone"]))))))
 
+(local one-pair [" 1:  1111111 ! 1:  2222222 fix: something"
+                 "    @@ Metadata"
+                 "     Author: Someone <someone@example.com>"
+                 "     "
+                 "      ## Commit message ##"
+                 "    -    fix: old subject"
+                 "    +    fix: new subject"
+                 "     "
+                 "      ## a.lua ##"
+                 "     @@"
+                 "      local m = {}"
+                 "     -local timeout = 30"
+                 "    -+local timeout = 45"
+                 "    ++local timeout = 60"
+                 "      return m"])
+
+(describe "regions in range-diff output"
+          (fn []
+            (it "finds the body of one hunk"
+                (fn []
+                  (let [regions (git one-pair)]
+                    (assert.equals 1 (length regions))
+                    (assert.same {:first 10
+                                  :last 15
+                                  :marker-width 1
+                                  :text-col 6
+                                  :series [:delete :add]
+                                  :series-width 1
+                                  :old-path :a.lua
+                                  :new-path :a.lua}
+                                 (. regions 1)))))
+            (it "gives nothing for the sections that stand in for a file"
+                (fn []
+                  ;; The `Metadata` and `Commit message` sections contain prose,
+                  ;; so
+                  ;; they must not be parsed as code.
+                  (let [regions (git [" 1:  1111111 ! 1:  2222222 fix: x"
+                                      "    @@ Metadata"
+                                      "     Author: Someone <s@example.com>"
+                                      "      ## Commit message ##"
+                                      "    -    fix: old subject"
+                                      "    +    fix: new subject"])]
+                    (assert.same {} regions))))
+            (it "takes the path from a hunk header of the outer diff"
+                (fn []
+                  ;; The outer diff shows the `## path ##` line only when it is
+                  ;; close enough to a difference, so its own hunk header is
+                  ;; sometimes the only place the path appears. The code that
+                  ;; follows the path after a colon is not part of it.
+                  (let [regions (git [" 1:  1111111 ! 1:  2222222 fix: x"
+                                      "    @@ b.lua: local function foo()"
+                                      "      local m = {}"
+                                      "     -local timeout = 30"
+                                      "    ++local timeout = 60"])]
+                    (assert.equals 1 (length regions))
+                    (assert.equals :b.lua (. regions 1 :new-path))
+                    (assert.equals 2 (. regions 1 :first))
+                    (assert.equals 5 (. regions 1 :last)))))
+            (it "drops the note on a file that a patch creates or removes"
+                (fn []
+                  ;; A range-diff writes `path (new)` and `path (deleted)`. The
+                  ;; note is not part of the path, and no filetype matches it.
+                  (let [regions (git [" 1:  1111111 ! 1:  2222222 fix: x"
+                                      "      ## a.lua (new) ##"
+                                      "     @@"
+                                      "    ++local timeout = 60"
+                                      "      ## b.lua (deleted) ##"
+                                      "     @@"
+                                      "    --local dropped = 1"])]
+                    (assert.equals 2 (length regions))
+                    (assert.equals :a.lua (. regions 1 :new-path))
+                    (assert.equals :b.lua (. regions 2 :new-path)))))
+            (it "keeps a path whose own name ends in brackets"
+                (fn []
+                  (let [regions (git [" 1:  1111111 ! 1:  2222222 fix: x"
+                                      "      ## notes (draft).md ##"
+                                      "     @@"
+                                      "    ++# heading"])]
+                    (assert.equals "notes (draft).md" (. regions 1 :new-path)))))
+            (it "reads ordinary diff output as an ordinary diff"
+                (fn []
+                  ;; A range-diff has the `git` filetype too, so the format
+                  ;; comes from the content. Ordinary output must not match.
+                  (let [regions (git ["diff --git a/a.lua b/a.lua"
+                                      "--- a/a.lua"
+                                      "+++ b/a.lua"
+                                      "@@ -1 +1 @@"
+                                      "-local a = 1"
+                                      "+local a = 2"])]
+                    (assert.equals 1 (. regions 1 :marker-width))
+                    (assert.equals 1 (. regions 1 :text-col)))))))
+
 (describe "regions in a fugitive status buffer"
           (fn []
             (it "takes the path from a status entry"

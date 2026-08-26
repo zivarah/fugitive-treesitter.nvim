@@ -6,6 +6,7 @@
 ;;; filetypes.
 
 (local {: char-at} (require :fugitive-treesitter.lib.str))
+(local config (require :fugitive-treesitter.config))
 
 (fn body-prefix? [sigil]
   "Test whether a sigil character is the marker of a hunk body line.
@@ -185,6 +186,152 @@
             {:old-path (or ?old-path entry) :new-path (or ?new-path entry)})
     _ nil))
 
+;; The sections that a range-diff writes in place of a file. They contain prose
+;; rather than code, so they get no path and no parser.
+(local range-diff-pseudo-files {:Metadata true "Commit message" true})
+
+(fn range-diff-header-pattern [old operator new]
+  "Builds a range-diff header pattern that returns the positions of the various components.
+
+  Parameters:
+    `operator`  The operator separating the two sides
+    `old`       The pattern of the side that names the commit of the earlier
+                series.
+    `new`       The pattern of the side that names the commit of the later
+                series.
+
+  Returns the pattern capturing the position where each part of the entry starts
+  and the position just past its end, for the old side, the operator and the new
+  side in turn."
+  (.. "^%s*()" old "()%s+()" operator "()%s+()" new "()"))
+
+(local range-diff-header-patterns
+       (let [commit-side "%d+:%s+%x%x%x%x%x%x%x+"
+             missing-side "%-+:%s+%-%-%-%-%-%-%-+"]
+         {:same (range-diff-header-pattern commit-side "=" commit-side)
+          :changed (range-diff-header-pattern commit-side "!" commit-side)
+          :dropped (range-diff-header-pattern commit-side "<" missing-side)
+          :added (range-diff-header-pattern missing-side ">" commit-side)}))
+
+(fn range-diff-patch-line [line]
+  "Get the patch line from a range-diff buffer line.
+
+  Patch lines are all lines within one range-diff header that are indented by the four
+  columns that range-diff uses, including '@@' hunk markers and '##' file
+  markers. For the lines that have one, the first series marker (the first of
+  the two '+'/'-'/' ' characters) is stripped.
+
+  Parameters:
+    `line`  The buffer line.
+
+  Returns the patch line, which starts with its own marker (not the outer series
+  marker), or nil when the buffer line belongs to the range-diff rather than to
+  a patch. A range-diff header entry gives nil."
+  (if (vim.startswith line "    ")
+      (let [rest (string.sub line 5)]
+        (if (vim.startswith rest "@@") rest
+            (body-prefix? (char-at rest 1)) (string.sub rest 2)))))
+
+(fn range-diff-file-header? [patch-line]
+  "Determine if the patch line (normalized by `range-diff-patch-line`) is a
+  range-diff file header like '[ +-]## <file> ##'"
+  (not= nil (patch-line:match "^[ +-]## .+ ##$")))
+
+(fn range-diff-hunk-line [line]
+  "Normalize a range-diff buffer line for hunk syntax checks.
+
+  Parameters:
+    `line`  The buffer line.
+
+  Returns a hunk candidate in patch coordinates, or nil when the buffer line
+  cannot belong to a hunk. A `## path ##` file header gives nil so that it ends
+  the hunk above it."
+  (case (range-diff-patch-line line)
+    patch-line (if (not (range-diff-file-header? patch-line)) patch-line)))
+
+(fn range-diff-section-path [heading]
+  "Get the file path out of the heading of a range-diff section.
+
+  Parameters:
+    `heading`  The heading of the section.
+
+  Returns the path. Two things that a heading can carry besides the path are
+  dropped:
+
+    - a hunk header of the outer diff repeats the heading and appends the code
+      around it after a colon, e.g. `src/retry.ts: export async function ...`
+    - a heading notes a file that the patch creates or removes in brackets, e.g.
+      `docs/retry.md (new)`."
+  (pick-values 1 (-> heading
+                     (string.gsub ":.*$" "")
+                     (string.gsub "%s+%b()$" ""))))
+
+(fn range-diff-section-state [heading]
+  "Make the file state for the heading of a range-diff section.
+
+  Parameters:
+    `heading`  The heading of the section.
+
+  Returns the state with both `old-path` and `new-path` set to the identified
+  file path, or an empty state for a pseudofile like the commit message."
+  (let [path (range-diff-section-path heading)]
+    (if (. range-diff-pseudo-files path)
+        {}
+        {:old-path path :new-path path})))
+
+(fn parse-range-diff-file-header [line _state]
+  "Parse a file header in `git range-diff` output.
+
+  A `## path ##` line starts a new file. A hunk header of the outer diff names
+  the file too, and is the only place the path appears when the outer diff skips
+  the `## path ##` line itself, which it does whenever that line is far enough
+  above the first difference.
+
+  Parameters:
+    `line`    The buffer line.
+    `_state`  The state after the line above. This format does not use it.
+
+  Returns the state after the header, or nil if `line` is not a file header."
+  (case (range-diff-patch-line line)
+    patch-line (case (or (patch-line:match "^[ +-]## (.+) ##$")
+                         (patch-line:match "^@@ (.+)$"))
+                 heading (range-diff-section-state heading))))
+
+(fn range-diff-header? [line]
+  "Test whether a line is a range diff header (naming the pair of commits).
+
+  Parameters:
+    `line`  The buffer line.
+
+  Returns true for a range-diff header."
+  (accumulate [found? false _ pattern (pairs range-diff-header-patterns)
+               &until found?]
+    (not= nil (line:match pattern))))
+
+(fn first-content-line [lines]
+  "Get the first non-empty line of a buffer.
+
+  Parameters:
+    `lines`  The lines of the buffer, 1-indexed.
+
+  Returns the line, or nil when every line is blank."
+  (accumulate [?found nil _ line (ipairs lines) &until ?found]
+    (if (not= "" (vim.trim line)) line)))
+
+(fn range-diff? [lines]
+  "Test whether a buffer contains `git range-diff` output.
+
+  A range-diff has the `git` filetype, the same as ordinary diff output, so the
+  format has to be told from the content.
+
+  Parameters:
+    `lines`  The lines of the buffer, 1-indexed.
+
+  Returns true if the buffer has range-diff content."
+  (case (first-content-line lines)
+    line (range-diff-header? line)
+    _ false))
+
 (fn unwrapped-hunk-line [line]
   "Normalize a buffer line for hunk syntax checks in an unwrapped format.
 
@@ -218,7 +365,27 @@
                            :parse-file-header parse-status-file-header
                            :text-offset 0
                            :series [:context]
-                           :series-width 0}})
+                           :series-width 0}
+                :range-diff {:hunk-line range-diff-hunk-line
+                             :parse-file-header parse-range-diff-file-header
+                             :text-offset 5
+                             :series [:delete :add]
+                             :series-width 1}})
+
+(fn buffer-format [lines filetype]
+  "Choose the diff format to use for a buffer based on its content and filetype.
+
+  Parameters:
+    `lines`     The lines of the buffer, 1-indexed.
+    `filetype`  The filetype of the buffer.
+
+  Returns the format."
+  (let [opts (config.get)]
+    (case filetype
+      :fugitive formats.fugitive
+      :git (if (and opts.range_diff.enabled (range-diff? lines))
+               formats.range-diff
+               formats.git))))
 
 (fn scan [lines format]
   "Find the hunk regions of a diff buffer.
@@ -245,16 +412,16 @@
     (var i 1)
     (while (<= i (length lines))
       (let [line (. lines i)
-            ?hunk-line (format.hunk-line line)]
+            ?hunk-line (format.hunk-line line)
+            ?new-state (format.parse-file-header line state)]
+        (when ?new-state
+          (set state ?new-state))
         (if (hunk-header? ?hunk-line)
             (let [(region stop) (hunk-region lines i ?hunk-line state format)]
               (when region
                 (table.insert regions region))
               (set i stop))
-            (let [?new-state (format.parse-file-header line state)]
-              (when ?new-state
-                (set state ?new-state))
-              (set i (+ i 1))))))
+            (set i (+ i 1)))))
     regions))
 
 (fn regions [lines filetype]
@@ -263,8 +430,8 @@
   Parameters:
     `lines`     The lines of the buffer, 1-indexed.
     `filetype`  The filetype of the buffer. `fugitive` selects the status
-                buffer format, and any other value selects `git`-format diff
-                output.
+                buffer format. Any other value selects `git range-diff` output
+                or `git`-format diff output, whichever the content looks like.
 
   Returns a sequential table of regions, in buffer order. A region holds:
     `first`         The 0-based first row of the hunk body.
@@ -284,6 +451,6 @@
 
   Returns an empty table when the buffer holds no hunk that belongs to a known
   file."
-  (scan lines (if (= :fugitive filetype) formats.fugitive formats.git)))
+  (scan lines (buffer-format lines filetype)))
 
 {: body-prefix? : line-kind : regions}
