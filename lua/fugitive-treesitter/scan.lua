@@ -314,12 +314,26 @@ local function scan(lines, format)
   return regions
 end
 local function regions(lines, filetype)
-  return scan(lines, buffer_format(lines, filetype))
+  local format = buffer_format(lines, filetype)
+  if format then
+    return scan(lines, format)
+  else
+    return {}
+  end
 end
 local function decorations(lines, filetype)
   local format = buffer_format(lines, filetype)
   local spans = {}
-  if format.decorate then
+  local _48_
+  do
+    local t_47_ = format
+    if (nil ~= t_47_) then
+      t_47_ = t_47_.decorate
+    else
+    end
+    _48_ = t_47_
+  end
+  if _48_ then
     for i, line in ipairs(lines) do
       for _, span in ipairs(format.decorate(line)) do
         span.row = (i - 1)

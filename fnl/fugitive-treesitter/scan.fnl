@@ -607,7 +607,8 @@
 
   Returns an empty table when the buffer holds no hunk that belongs to a known
   file."
-  (scan lines (buffer-format lines filetype)))
+  (let [format (buffer-format lines filetype)]
+    (if format (scan lines format) [])))
 
 (fn decorations [lines filetype]
   "Find the spans that aren't code (and therefore won't get treesitter
@@ -639,7 +640,7 @@
   Returns an empty table for a format that has no such lines."
   (let [format (buffer-format lines filetype)
         spans []]
-    (when format.decorate
+    (when (?. format :decorate)
       (each [i line (ipairs lines)]
         (each [_ span (ipairs (format.decorate line))]
           (set span.row (- i 1))
