@@ -152,7 +152,9 @@
                     :old-path ?old-path
                     :new-path ?new-path
                     :old-start ?old-start
-                    :new-start ?new-start})]
+                    :new-start ?new-start
+                    :old-blob state.old-blob
+                    :new-blob state.new-blob})]
     (values region stop)))
 
 (fn header-path [line]
@@ -166,6 +168,29 @@
   (let [path (line:sub 5)]
     (if (not= path :/dev/null)
         (or (path:match "^%a/(.+)$") path))))
+
+(fn blob-hash [hash]
+  "Normalize one object hash.
+
+  Parameters:
+    `hash`  The abbreviated hash of the object.
+
+  Returns the hash, or nil for the null OID (all zeros)."
+  (if (hash:match "[^0]") hash))
+
+(fn parse-git-index-header [line state]
+  "Read the blob IDs from a Git `index` header.
+
+  Parameters:
+    `line`   The diff line.
+    `state`  The state as of the previous line.
+
+  Returns the state after the header, or nil if `line` is not an `index`
+  header."
+  (case (line:match "^index (%x+)%.%.(%x+)")
+    (old new) (vim.tbl_extend :force state
+                              {:old-blob (blob-hash old)
+                               :new-blob (blob-hash new)})))
 
 (fn parse-git-file-header [line state]
   "Parse a file header line in `git`-format diff output.
@@ -184,7 +209,8 @@
       (vim.startswith line "--- ")
       (vim.tbl_extend :force state {:old-path (header-path line)})
       (vim.startswith line "+++ ")
-      (vim.tbl_extend :force state {:new-path (header-path line)})))
+      (vim.tbl_extend :force state {:new-path (header-path line)})
+      (parse-git-index-header line state)))
 
 (fn parse-status-file-header [line _state]
   "Parse a file header in the `:Git` status buffer, where a
@@ -624,6 +650,12 @@
                     Absent when the hunk header has no old file position.
     `new-start`     The 1-based line of the new file where the body starts.
                     Absent under the same condition as `old-start`.
+    `old-blob`      The abbreviated hash of the object that contains the old
+                    file.
+                    Absent if the side's content doesn't come from a commit.
+    `new-blob`      The abbreviated hash of the object that contains the new
+                    file.
+                    Absent under the same condition as `old-blob`.
 
   Returns an empty table when the buffer holds no hunk that belongs to a known
   file."

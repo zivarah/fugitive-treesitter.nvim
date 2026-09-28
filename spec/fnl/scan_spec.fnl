@@ -86,7 +86,9 @@
                                   :old-path :lua/foo.lua
                                   :new-path :lua/foo.lua
                                   :old-start 1
-                                  :new-start 1}
+                                  :new-start 1
+                                  :old-blob :1111111
+                                  :new-blob :2222222}
                                  (. regions 1)))))
             (it "keeps the no-newline marker in the body"
                 (fn []
@@ -256,6 +258,50 @@
                                       "+return m"])]
                     (assert.equals 0 (. regions 1 :old-start))
                     (assert.equals 1 (. regions 1 :new-start)))))
+            (it "gives no blob for a side that the change creates"
+                (fn []
+                  ;; git writes a hash of all zeros for the side with no object.
+                  (let [regions (git ["diff --git a/a.lua b/a.lua"
+                                      "new file mode 100644"
+                                      "index 0000000..2222222"
+                                      "--- /dev/null"
+                                      "+++ b/a.lua"
+                                      "@@ -0,0 +1 @@"
+                                      "+local m = {}"])]
+                    (assert.is_nil (. regions 1 :old-blob))
+                    (assert.equals :2222222 (. regions 1 :new-blob)))))
+            (it "forgets the blobs of the file above"
+                (fn []
+                  (let [regions (git ["diff --git a/a.lua b/a.lua"
+                                      "index 1111111..2222222 100644"
+                                      "--- a/a.lua"
+                                      "+++ b/a.lua"
+                                      "@@ -1 +1 @@"
+                                      "-local a = 1"
+                                      "+local a = 2"
+                                      "diff --git a/b.lua b/b.lua"
+                                      "--- a/b.lua"
+                                      "+++ b/b.lua"
+                                      "@@ -1 +1 @@"
+                                      "-local b = 1"
+                                      "+local b = 2"])]
+                    (assert.equals 2 (length regions))
+                    (assert.equals :1111111 (. regions 1 :old-blob))
+                    (assert.is_nil (. regions 2 :old-blob))
+                    (assert.is_nil (. regions 2 :new-blob)))))
+            (it "gives no blob for a combined diff"
+                (fn []
+                  ;; A combined diff names one object per parent on the old
+                  ;; side, so no single hash stands for it.
+                  (let [regions (git ["diff --cc a.lua"
+                                      "index 1111111,2222222..3333333"
+                                      "--- a/a.lua"
+                                      "+++ b/a.lua"
+                                      "@@@ -1,2 -1,2 +1,2 @@@"
+                                      "- local timeout = 30"
+                                      "++local timeout = 60"])]
+                    (assert.is_nil (. regions 1 :old-blob))
+                    (assert.is_nil (. regions 1 :new-blob)))))
             (it "gives no start for a combined diff"
                 (fn []
                   ;; The old side of a combined diff is one file per parent
