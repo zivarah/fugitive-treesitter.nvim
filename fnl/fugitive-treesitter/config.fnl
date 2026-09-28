@@ -3,6 +3,7 @@
 (local defaults {:max_lines 10000
                  :derived_background {:saturation 0.35
                                       :lightness {:dark 0.18 :light 0.85}}
+                 :file_context {:enabled true :max_lines 10000}
                  :range_diff {:enabled true
                               :define_folds true
                               :earlier_series_dim_factor 0.4

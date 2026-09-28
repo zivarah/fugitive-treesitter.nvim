@@ -70,6 +70,10 @@ Defaults: >lua
             saturation = 0.35,
             lightness = { dark = 0.18, light = 0.85 },
         },
+        file_context = {
+            enabled = true,
+            max_lines = 10000,
+        },
         range_diff = {
             enabled = true,
             define_folds = true,
@@ -100,6 +104,17 @@ derived_background ~
     should raise `lightness.dark` to make the diff background stand out more
     against a dark editor background and lower `lightness.light` to make it
     stand out more against a light editor background.
+
+                                            *fugitive-treesitter-file_context*
+file_context ~
+    Options for highlighting hunks with their full source files.
+
+    `enabled` controls whether the plugin reads and parses full source files.
+    When false, it parses each hunk on its own and does not preload sources.
+
+    `max_lines` limits the number of lines in each source file. If the source
+    exceeds this limit, the plugin parses the hunk on its own. Set 0 for no
+    limit. This is separate from the hunk limit described above.
 
                                               *fugitive-treesitter-range_diff*
 range_diff ~
