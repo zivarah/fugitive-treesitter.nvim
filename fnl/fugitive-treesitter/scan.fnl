@@ -108,6 +108,19 @@
       (- 1)
       (math.max 1)))
 
+(fn hunk-starts [header]
+  "Read the old and new start lines from an ordinary hunk header.
+
+  Parameters:
+    `header`  The hunk header line.
+
+  Returns two values: the 1-based old start and the 1-based new start. Both are
+  nil when the header does not contain one range for each side.
+
+  A start of 0 identifies an empty side, such as the old side of a new file."
+  (case (header:match "^@@ %-(%d+)[,%s].-%+(%d+)[,%s]")
+    (old new) (values (tonumber old) (tonumber new))))
+
 (fn hunk-region [lines i header state format]
   "Make the region for the hunk body below a hunk header.
 
@@ -126,6 +139,7 @@
   (let [start (+ i 1)
         stop (hunk-body-end lines start format)
         width (marker-width header)
+        (?old-start ?new-start) (hunk-starts header)
         ?old-path (or state.old-path state.new-path)
         ?new-path (or state.new-path state.old-path)
         region (if (and ?old-path (> stop start))
@@ -136,7 +150,9 @@
                     :series format.series
                     :series-width format.series-width
                     :old-path ?old-path
-                    :new-path ?new-path})]
+                    :new-path ?new-path
+                    :old-start ?old-start
+                    :new-start ?new-start})]
     (values region stop)))
 
 (fn header-path [line]
@@ -604,6 +620,10 @@
     `old-path`      The path of the file before the change.
     `new-path`      The path of the file after the change. This differs from
                     `old-path` only for a rename.
+    `old-start`     The 1-based line of the old file where the body starts.
+                    Absent when the hunk header has no old file position.
+    `new-start`     The 1-based line of the new file where the body starts.
+                    Absent under the same condition as `old-start`.
 
   Returns an empty table when the buffer holds no hunk that belongs to a known
   file."

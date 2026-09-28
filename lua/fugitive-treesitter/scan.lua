@@ -38,15 +38,26 @@ end
 local function marker_width(header)
   return math.max((#header:match("^@+") - 1), 1)
 end
+local function hunk_starts(header)
+  local case_4_, case_5_ = header:match("^@@ %-(%d+)[,%s].-%+(%d+)[,%s]")
+  if ((nil ~= case_4_) and (nil ~= case_5_)) then
+    local old = case_4_
+    local new = case_5_
+    return tonumber(old), tonumber(new)
+  else
+    return nil
+  end
+end
 local function hunk_region(lines, i, header, state, format)
   local start = (i + 1)
   local stop = hunk_body_end(lines, start, format)
   local width = marker_width(header)
+  local _3fold_start, _3fnew_start = hunk_starts(header)
   local _3fold_path = (state["old-path"] or state["new-path"])
   local _3fnew_path = (state["new-path"] or state["old-path"])
   local region
   if (_3fold_path and (stop > start)) then
-    region = {first = (start - 1), last = (stop - 1), ["marker-width"] = width, ["text-col"] = (format["text-offset"] + width), series = format.series, ["series-width"] = format["series-width"], ["old-path"] = _3fold_path, ["new-path"] = _3fnew_path}
+    region = {first = (start - 1), last = (stop - 1), ["marker-width"] = width, ["text-col"] = (format["text-offset"] + width), series = format.series, ["series-width"] = format["series-width"], ["old-path"] = _3fold_path, ["new-path"] = _3fnew_path, ["old-start"] = _3fold_start, ["new-start"] = _3fnew_start}
   else
     region = nil
   end
@@ -72,13 +83,13 @@ local function parse_git_file_header(line, state)
   end
 end
 local function parse_status_file_header(line, _state)
-  local case_7_ = line:match("^[A-Z?] (.+)$")
-  if (nil ~= case_7_) then
-    local entry = case_7_
+  local case_10_ = line:match("^[A-Z?] (.+)$")
+  if (nil ~= case_10_) then
+    local entry = case_10_
     local _3fold_path, _3fnew_path = entry:match("^(.-) %-> (.+)$")
     return {["old-path"] = (_3fold_path or entry), ["new-path"] = (_3fnew_path or entry)}
   else
-    local _ = case_7_
+    local _ = case_10_
     return nil
   end
 end
@@ -126,9 +137,9 @@ local function range_diff_file_header_3f(patch_line)
   return (nil ~= patch_line:match("^[ +-]## .+ ##$"))
 end
 local function range_diff_hunk_line(line)
-  local case_12_ = range_diff_patch_line(line)
-  if (nil ~= case_12_) then
-    local patch_line = case_12_
+  local case_15_ = range_diff_patch_line(line)
+  if (nil ~= case_15_) then
+    local patch_line = case_15_
     if not range_diff_file_header_3f(patch_line) then
       return patch_line
     else
@@ -150,12 +161,12 @@ local function range_diff_section_state(heading)
   end
 end
 local function parse_range_diff_file_header(line, _state)
-  local case_16_ = range_diff_patch_line(line)
-  if (nil ~= case_16_) then
-    local patch_line = case_16_
-    local case_17_ = (patch_line:match("^[ +-]## (.+) ##$") or patch_line:match("^@@ (.+)$"))
-    if (nil ~= case_17_) then
-      local heading = case_17_
+  local case_19_ = range_diff_patch_line(line)
+  if (nil ~= case_19_) then
+    local patch_line = case_19_
+    local case_20_ = (patch_line:match("^[ +-]## (.+) ##$") or patch_line:match("^@@ (.+)$"))
+    if (nil ~= case_20_) then
+      local heading = case_20_
       return range_diff_section_state(heading)
     else
       return nil
@@ -174,17 +185,17 @@ local function whole_entry(spans)
   return {col = spans.old.col, ["end-col"] = spans.subject["end-col"]}
 end
 local function range_diff_header_decorations(line)
-  local case_20_ = range_diff_header_spans(line)
-  if (nil ~= case_20_) then
-    local spans = case_20_
-    local case_21_ = spans.kind
-    if (case_21_ == "changed") then
+  local case_23_ = range_diff_header_spans(line)
+  if (nil ~= case_23_) then
+    local spans = case_23_
+    local case_24_ = spans.kind
+    if (case_24_ == "changed") then
       return {colored("commit-delete", spans.old), colored("commit", spans.operator), colored("commit-add", spans.new)}
-    elseif (case_21_ == "dropped") then
+    elseif (case_24_ == "dropped") then
       return {colored("commit-delete", whole_entry(spans))}
-    elseif (case_21_ == "added") then
+    elseif (case_24_ == "added") then
       return {colored("commit-add", whole_entry(spans))}
-    elseif (case_21_ == "same") then
+    elseif (case_24_ == "same") then
       return {colored("commit", whole_entry(spans))}
     else
       return nil
@@ -194,12 +205,12 @@ local function range_diff_header_decorations(line)
   end
 end
 local function hunk_header_decorations(line, pattern, kind)
-  local case_24_, case_25_, case_26_, case_27_ = line:match(pattern)
-  if ((nil ~= case_24_) and (nil ~= case_25_) and (nil ~= case_26_) and (nil ~= case_27_)) then
-    local marker_from = case_24_
-    local marker_to = case_25_
-    local heading_from = case_26_
-    local heading = case_27_
+  local case_27_, case_28_, case_29_, case_30_ = line:match(pattern)
+  if ((nil ~= case_27_) and (nil ~= case_28_) and (nil ~= case_29_) and (nil ~= case_30_)) then
+    local marker_from = case_27_
+    local marker_to = case_28_
+    local heading_from = case_29_
+    local heading = case_30_
     local marker = colored(kind, match__3espan(marker_from, marker_to))
     local path = range_diff_section_path(heading)
     if (0 < #path) then
@@ -212,10 +223,10 @@ local function hunk_header_decorations(line, pattern, kind)
   end
 end
 local function section_heading_decorations(line)
-  local case_30_, case_31_ = line:match("^    [ +-][ +-]## ()(.+) ##$")
-  if ((nil ~= case_30_) and (nil ~= case_31_)) then
-    local from = case_30_
-    local heading = case_31_
+  local case_33_, case_34_ = line:match("^    [ +-][ +-]## ()(.+) ##$")
+  if ((nil ~= case_33_) and (nil ~= case_34_)) then
+    local from = case_33_
+    local heading = case_34_
     local path = range_diff_section_path(heading)
     local span = match__3espan(from, (from + #path))
     return {colored("file", span)}
@@ -224,21 +235,21 @@ local function section_heading_decorations(line)
   end
 end
 local function series_marker_decorations(line)
-  local case_33_, case_34_ = line:match("^    ()[ +-]()")
-  if ((nil ~= case_33_) and (nil ~= case_34_)) then
-    local from = case_33_
-    local to = case_34_
-    local case_35_ = line_kind(char_at(line, from))
-    if (case_35_ == "add") then
+  local case_36_, case_37_ = line:match("^    ()[ +-]()")
+  if ((nil ~= case_36_) and (nil ~= case_37_)) then
+    local from = case_36_
+    local to = case_37_
+    local case_38_ = line_kind(char_at(line, from))
+    if (case_38_ == "add") then
       return {colored("series-add", match__3espan(from, to))}
-    elseif (case_35_ == "delete") then
+    elseif (case_38_ == "delete") then
       return {colored("series-delete", match__3espan(from, to))}
     else
-      local _ = case_35_
+      local _ = case_38_
       return {}
     end
   else
-    local _ = case_33_
+    local _ = case_36_
     return {}
   end
 end
@@ -261,12 +272,12 @@ local function first_content_line(lines)
   return _3ffound
 end
 local function range_diff_3f(lines)
-  local case_39_ = first_content_line(lines)
-  if (nil ~= case_39_) then
-    local line = case_39_
+  local case_42_ = first_content_line(lines)
+  if (nil ~= case_42_) then
+    local line = case_42_
     return range_diff_header_3f(line)
   else
-    local _ = case_39_
+    local _ = case_42_
     return false
   end
 end
@@ -324,16 +335,16 @@ end
 local function decorations(lines, filetype)
   local format = buffer_format(lines, filetype)
   local spans = {}
-  local _48_
+  local _51_
   do
-    local t_47_ = format
-    if (nil ~= t_47_) then
-      t_47_ = t_47_.decorate
+    local t_50_ = format
+    if (nil ~= t_50_) then
+      t_50_ = t_50_.decorate
     else
     end
-    _48_ = t_47_
+    _51_ = t_50_
   end
-  if _48_ then
+  if _51_ then
     for i, line in ipairs(lines) do
       for _, span in ipairs(format.decorate(line)) do
         span.row = (i - 1)

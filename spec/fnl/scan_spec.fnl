@@ -84,7 +84,9 @@
                                   :series [:context]
                                   :series-width 0
                                   :old-path :lua/foo.lua
-                                  :new-path :lua/foo.lua}
+                                  :new-path :lua/foo.lua
+                                  :old-start 1
+                                  :new-start 1}
                                  (. regions 1)))))
             (it "keeps the no-newline marker in the body"
                 (fn []
@@ -222,6 +224,51 @@
                                       "++local timeout = 60"])]
                     (assert.equals 1 (length regions))
                     (assert.equals 2 (. regions 1 :marker-width)))))
+            (it "reads the line that each side of a hunk starts at"
+                (fn []
+                  (let [regions (git ["diff --git a/a.lua b/a.lua"
+                                      "--- a/a.lua"
+                                      "+++ b/a.lua"
+                                      "@@ -10,3 +20,4 @@ local function f()"
+                                      " local m = {}"
+                                      "-local a = 1"
+                                      "+local a = 2"])]
+                    (assert.equals 10 (. regions 1 :old-start))
+                    (assert.equals 20 (. regions 1 :new-start)))))
+            (it "reads a start from a header that carries no count"
+                (fn []
+                  ;; Git leaves the count out when the side contains one line.
+                  (let [regions (git ["diff --git a/a.lua b/a.lua"
+                                      "--- a/a.lua"
+                                      "+++ b/a.lua"
+                                      "@@ -7 +9 @@"
+                                      "-local a = 1"
+                                      "+local a = 2"])]
+                    (assert.equals 7 (. regions 1 :old-start))
+                    (assert.equals 9 (. regions 1 :new-start)))))
+            (it "reads a start of zero for a file that the change creates"
+                (fn []
+                  (let [regions (git ["diff --git a/a.lua b/a.lua"
+                                      "--- /dev/null"
+                                      "+++ b/a.lua"
+                                      "@@ -0,0 +1,2 @@"
+                                      "+local m = {}"
+                                      "+return m"])]
+                    (assert.equals 0 (. regions 1 :old-start))
+                    (assert.equals 1 (. regions 1 :new-start)))))
+            (it "gives no start for a combined diff"
+                (fn []
+                  ;; The old side of a combined diff is one file per parent
+                  ;; rather than one file, so no single line number stands for
+                  ;; it.
+                  (let [regions (git ["diff --cc a.lua"
+                                      "--- a/a.lua"
+                                      "+++ b/a.lua"
+                                      "@@@ -1,2 -1,2 +1,2 @@@"
+                                      "- local timeout = 30"
+                                      "++local timeout = 60"])]
+                    (assert.is_nil (. regions 1 :old-start))
+                    (assert.is_nil (. regions 1 :new-start)))))
             (it "gives nothing for a hunk with no file header"
                 (fn []
                   (assert.same {}
@@ -271,11 +318,17 @@
                                   :old-path :a.lua
                                   :new-path :a.lua}
                                  (. regions 1)))))
+            (it "gives no start for a hunk of a patch"
+                (fn []
+                  ;; A range-diff writes a bare `@@` for the hunks of a patch,
+                  ;; so nothing says where in the file the body sits.
+                  (let [regions (git one-pair)]
+                    (assert.is_nil (. regions 1 :old-start))
+                    (assert.is_nil (. regions 1 :new-start)))))
             (it "gives nothing for the sections that stand in for a file"
                 (fn []
                   ;; The `Metadata` and `Commit message` sections contain prose,
-                  ;; so
-                  ;; they must not be parsed as code.
+                  ;; so they must not be parsed as code.
                   (let [regions (git [" 1:  1111111 ! 1:  2222222 fix: x"
                                       "    @@ Metadata"
                                       "     Author: Someone <s@example.com>"
@@ -351,7 +404,9 @@
                                   :series [:context]
                                   :series-width 0
                                   :old-path :lua/foo.lua
-                                  :new-path :lua/foo.lua}
+                                  :new-path :lua/foo.lua
+                                  :old-start 1
+                                  :new-start 1}
                                  (. regions 1)))))
             (it "splits both paths of a rename entry"
                 (fn []
