@@ -124,7 +124,7 @@ range_diff ~
     appears in the earlier series (`--` or `-+`). See
     |hl-FugitiveTreesitterAddDim|.
 
-    `commit_pair_mute_factor` mutes the text of a commit pair entry. that is
+    `commit_pair_mute_factor` mutes the text of a commit pair entry that is
     unchanged. See |hl-FugitiveTreesitterCommit|.
 
 
